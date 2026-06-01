@@ -1,30 +1,27 @@
+
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
 
-class GetCartRequest:
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-
-class GetCartUseCase:
+class ClearCartUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: GetCartRequest) -> Dict[str, Any]:
-        """Retorna o carrinho do usuário"""
+    def execute(self, user_id: str) -> Dict[str, Any]:
+        """Esvazia o carrinho"""
         try:
-            cart_summary = self.cart_service.get_cart_summary(request.user_id)
+            cart = self.cart_service.clear_cart(user_id)
             
             return {
                 "success": True,
-                "data": cart_summary,
+                "data": self.cart_service.get_cart_summary(user_id),
                 "status_code": 200
             }
             
         except Exception as e:
-            logger.error(f"Erro no GetCartUseCase: {e}")
+            logger.error(f"Erro no ClearCartUseCase: {e}")
             return {
                 "success": False,
                 "error": str(e),

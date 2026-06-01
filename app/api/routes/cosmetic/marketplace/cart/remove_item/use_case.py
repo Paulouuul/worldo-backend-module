@@ -1,35 +1,28 @@
-# app/api/routes/cosmetic/marketplace/cart/add_item/use_case.py
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-class AddItemRequest:
-    def __init__(self, user_id: str, item_data: Dict[str, Any]):
+class RemoveItemRequest:
+    def __init__(self, user_id: str, item_id: str):
         self.user_id = user_id
-        self.item_data = item_data
+        self.item_id = item_id
 
-class AddItemUseCase:
+class RemoveItemUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: AddItemRequest) -> Dict[str, Any]:
-        """
-        Adiciona item ao carrinho
-        
-        Returns:
-            Dict: Resumo do carrinho atualizado
-        """
+    def execute(self, request: RemoveItemRequest) -> Dict[str, Any]:
+        """Remove item do carrinho"""
         try:
-            cart = self.cart_service.add_item(request.user_id, request.item_data)
+            cart = self.cart_service.remove_item(request.user_id, request.item_id)
             
             if not cart:
                 return {
                     "success": False,
-                    "error": "Erro ao adicionar item ao carrinho",
-                    "status_code": 400
+                    "error": "Item não encontrado no carrinho",
+                    "status_code": 404
                 }
             
             return {
@@ -39,7 +32,7 @@ class AddItemUseCase:
             }
             
         except Exception as e:
-            logger.error(f"Erro no AddItemUseCase: {e}")
+            logger.error(f"Erro no RemoveItemUseCase: {e}")
             return {
                 "success": False,
                 "error": str(e),

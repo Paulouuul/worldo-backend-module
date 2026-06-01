@@ -1,35 +1,33 @@
-# app/api/routes/cosmetic/marketplace/cart/add_item/use_case.py
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-class AddItemRequest:
-    def __init__(self, user_id: str, item_data: Dict[str, Any]):
+class UpdateQuantityRequest:
+    def __init__(self, user_id: str, item_id: str, quantity: int):
         self.user_id = user_id
-        self.item_data = item_data
+        self.item_id = item_id
+        self.quantity = quantity
 
-class AddItemUseCase:
+class UpdateQuantityUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: AddItemRequest) -> Dict[str, Any]:
-        """
-        Adiciona item ao carrinho
-        
-        Returns:
-            Dict: Resumo do carrinho atualizado
-        """
+    def execute(self, request: UpdateQuantityRequest) -> Dict[str, Any]:
+        """Atualiza quantidade de um item no carrinho"""
         try:
-            cart = self.cart_service.add_item(request.user_id, request.item_data)
+            cart = self.cart_service.update_quantity(
+                request.user_id, 
+                request.item_id, 
+                request.quantity
+            )
             
             if not cart:
                 return {
                     "success": False,
-                    "error": "Erro ao adicionar item ao carrinho",
-                    "status_code": 400
+                    "error": "Item não encontrado no carrinho",
+                    "status_code": 404
                 }
             
             return {
@@ -39,7 +37,7 @@ class AddItemUseCase:
             }
             
         except Exception as e:
-            logger.error(f"Erro no AddItemUseCase: {e}")
+            logger.error(f"Erro no UpdateQuantityUseCase: {e}")
             return {
                 "success": False,
                 "error": str(e),

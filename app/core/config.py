@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     redis_password: str = ""
     
     # JWT Settings (para autenticação com Next.js)
-    jwt_secret: str = ""
+    jwt_secret: str = "3e649cf42e8d84a5b824af1fb7033f6a7378a02f040fe5e4caff780e3c44f045"
     jwt_algorithm: str = "HS256"
     
     # Next.js API URL
