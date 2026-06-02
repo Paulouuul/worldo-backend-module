@@ -1,5 +1,5 @@
 # app/core/config.py
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import os
 
@@ -33,9 +33,11 @@ class Settings(BaseSettings):
     # CORS
     frontend_url: str = "http://localhost:3000"
     
-    class Config:
-        env_file = ".env"
-        env_prefix = "WORLDO_"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="WORLDO_",
+        case_sensitive=False,
+        extra="ignore"
+    )
 
 settings = Settings()

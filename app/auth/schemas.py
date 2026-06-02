@@ -13,13 +13,12 @@ class UserInfo(BaseModel):
     bio: Optional[str] = ""
     location: Optional[str] = ""
     website: Optional[str] = ""
+    equipped_frame: Optional[Dict[str, Any]] = Field(default=None, alias="equippedFrame")
     
     # Flags de controle de autenticação
     provider: Optional[str] = "credentials"
     is_oauth: bool = Field(default=False, alias="isOAuth")
     has_password: bool = Field(default=True, alias="hasPassword")
     
-    equipped_frame: Optional[Dict[str, Any]] = Field(default=None, alias="equippedFrame")
-
     class Config:
         populate_by_name = True
