@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 class UserInfo(BaseModel):
-    id: str = ""
     public_id: str = Field(alias="publicId")
     email: str 
     name: str

@@ -59,7 +59,6 @@ def get_current_user(
     logger.info(f"Usuário autenticado: {user_id} - {payload.get('username') or email}")
 
     return UserInfo(
-        id=user_id,
         public_id=payload.get("publicId") or payload.get("public_id") or user_id,
         email=email,
         name=payload.get("name") or email.split('@')[0],
