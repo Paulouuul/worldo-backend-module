@@ -1,4 +1,13 @@
 import logging
+# Configura logging 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    
+)
+
+logger = logging.getLogger(__name__)
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,20 +15,12 @@ from app.core.config import settings
 from app.api.routes.test.auth_test import router as auth_test_router
 from app.api.routes.cosmetic.marketplace.cart.router import router as cart_router
 
-# Configura logging ANTES de usar
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-
-logger = logging.getLogger(__name__)
-
 
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         logger.info("=" * 80)
-        logger.info("🚀 SERVER STARTED - Available Routes:")
+        logger.info("SERVER STARTED - Available Routes:")
         logger.info("=" * 80)
         for route in app.routes:
             if hasattr(route, "path") and hasattr(route, "methods"):
@@ -29,7 +30,7 @@ def create_app() -> FastAPI:
                 logger.info(f"  {'WS':20} {route.path}")
         logger.info("=" * 80)
         yield
-        logger.info("👋 SERVER SHUTDOWN")
+        logger.info("SERVER SHUTDOWN")
 
     app = FastAPI(
         title=settings.app_name,
@@ -44,7 +45,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],  # Permite TODOS os headers
     )
 
-    # 🔥 Registra os routers (adicionar conforme criar)
+    # Registra os routers (adicionar conforme criar)
     app.include_router(auth_test_router)
     # app.include_router(cart_router)  # Descomentar quando o cart estiver pronto
 
