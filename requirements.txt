@@ -9,6 +9,9 @@ asyncpg==0.29.0
 # SQL
 sqlalchemy==2.0.23
 
+# Geração de Id
+cuid==0.3.0
+
 # Alembic
 alembic==1.12.1
 

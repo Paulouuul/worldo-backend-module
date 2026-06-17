@@ -22,7 +22,7 @@ async def update_my_profile(
     removeAvatar: bool = Form(False),
     removeCover: bool = Form(False),
 ):
-    logger.info(f"📥 Recebendo atualização de perfil para o usuário: {user.id}")
+    logger.info(f"Recebendo atualização de perfil para o usuário: {user.id}")
     
     try:
         # Lê os bytes puros do UploadFile gerado pelo FormData do Next.js
@@ -59,20 +59,19 @@ async def update_my_profile(
         }
         
         use_case = UpdateProfileUseCase()
-        # Passa o dicionário diretamente (sem usar json.dumps)
-        response = await use_case.execute(payload)
+        response_data, status_code = await use_case.execute(payload)
         
-        if not response.get("success"):
-            logger.error(f"❌ Erro no use_case: {response.get('error')}")
+        if "error" in response_data:
+            logger.error(f"Erro no use_case: {response_data.get('error')}")
             raise HTTPException(
-                status_code=response.get("status_code", 500),
-                detail=response.get("error")
+                status_code=status_code,
+                detail=response_data.get("error")
             )
         
-        return response.get("data")
+        return response_data
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"❌ Erro inesperado: {e}")
+        logger.error(f"Erro inesperado: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao processar requisição")

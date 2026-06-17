@@ -23,12 +23,6 @@ class UpdateProfileRequest(BaseModel):
     remove_avatar: bool = False
     remove_cover: bool = False
 
-class UpdateProfileResponse(BaseModel):
-    success: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    status_code: int = 200
-
 class UpdateProfileUseCase:
     MAX_AVATAR_SIZE = 5 * 1024 * 1024
     MAX_COVER_SIZE = 8 * 1024 * 1024
@@ -42,7 +36,7 @@ class UpdateProfileUseCase:
         self._uploaded_avatar_path = None
         self._uploaded_cover_path = None
     
-    async def execute(self, payload: dict) -> Dict[str, Any]:
+    async def execute(self, payload: dict) -> tuple[Dict[str, Any], int]:
         """Recebe o dicionário payload diretamente do Router"""
         try:
             logger.info("🚀 Iniciando execução do UseCase")
@@ -58,42 +52,38 @@ class UpdateProfileUseCase:
             
             current_user = await self._get_current_user(request.user_id)
             if not current_user:
-                return UpdateProfileResponse(success=False, error="Usuário não encontrado", status_code=404).model_dump()
-            
+                return {"error": "Usuário não encontrado"}, 404            
             updated_user = await self._update_user(request, new_avatar_url, new_cover_url)
             if not updated_user:
                 await self._rollback()
-                return UpdateProfileResponse(success=False, error="Erro ao atualizar usuário", status_code=500).model_dump()
-            
+                return {"error": "Erro ao atualizar perfil"}, 500
             await self._cleanup_old_files(
                 current_user, uploaded_avatar_path, uploaded_cover_path,
                 request.remove_avatar, request.remove_cover
             )
             
-            return UpdateProfileResponse(
-                success=True,
-                data={
-                    "user": {
-                        "id": updated_user['id'],
-                        "name": updated_user['name'],
-                        "username": updated_user['username'],
-                        "email": updated_user['email'],
-                        "bio": updated_user.get('bio'),
-                        "location": updated_user.get('location'),
-                        "website": updated_user.get('website'),
-                        "avatar": updated_user.get('avatar'),
-                        "coverImage": updated_user.get('coverImage'),
-                    }
+            return {
+                "success": True,
+                "user": {
+                    "id": updated_user['id'],
+                    "name": updated_user['name'],
+                    "username": updated_user['username'],
+                    "email": updated_user['email'],
+                    "bio": updated_user.get('bio'),
+                    "location": updated_user.get('location'),
+                    "website": updated_user.get('website'),
+                    "avatar": updated_user.get('avatar'),
+                    "coverImage": updated_user.get('coverImage'),
                 }
-            ).model_dump()
+            }, 200
             
         except ValueError as e:
             await self._rollback()
-            return UpdateProfileResponse(success=False, error=str(e), status_code=400).model_dump()
+            return {"error": str(e)}, 400
         except Exception as e:
             logger.error(f"❌ Erro crítico: {e}")
             await self._rollback()
-            return UpdateProfileResponse(success=False, error="Erro interno", status_code=500).model_dump()
+            return {"error": "Erro ao atualizar perfil"}, 500
 
     async def _validate_request(self, request: UpdateProfileRequest):
         if not request.name or not request.name.strip(): raise ValueError("Nome é obrigatório")
