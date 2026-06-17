@@ -52,13 +52,13 @@ class DatabaseManager:
             # Testa a conexão
             async with self._pool.acquire() as conn:
                 version = await conn.fetchval("SELECT version()")
-                logger.info(f"✅ Conectado ao PostgreSQL: {version[:50]}...")
+                logger.info(f"Conectado ao PostgreSQL: {version[:50]}...")
             
             self._initialized = True
             logger.info(f"Pool de conexões inicializado (min={settings.db_pool_min_size}, max={settings.db_pool_max_size})")
             
         except Exception as e:
-            logger.error(f"❌ Erro ao conectar ao PostgreSQL: {e}")
+            logger.error(f"Erro ao conectar ao PostgreSQL: {e}")
             raise
     
     async def close(self) -> None:
