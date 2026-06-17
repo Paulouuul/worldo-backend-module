@@ -50,6 +50,7 @@ def get_current_user(
         raise credentials_exception
 
     user_id = payload.get("sub") or payload.get("id")
+    public_id = payload.get("publicId") or payload.get("public_id") or user_id
     email = payload.get("email")
     
     if not user_id or not email:
@@ -59,12 +60,13 @@ def get_current_user(
     logger.info(f"Usuário autenticado: {user_id} - {payload.get('username') or email}")
 
     return UserInfo(
-        public_id=payload.get("publicId") or payload.get("public_id") or user_id,
+        id=user_id,
+        public_id=public_id,
         email=email,
         name=payload.get("name") or email.split('@')[0],
         username=payload.get("username") or email.split('@')[0],
         avatar=payload.get("avatar"),
-        cover_image=payload.get("coverImage"),
+        cover_image=payload.get("coverImage") or payload.get("cover_image"),
         bio=payload.get("bio", ""),
         location=payload.get("location", ""),
         website=payload.get("website", ""),
