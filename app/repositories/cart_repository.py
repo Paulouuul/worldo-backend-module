@@ -45,14 +45,14 @@ class CartRepository:
             success = redis_client.set_json(key, data, self.TTL)
             
             if success:
-                logger.info(f"✅ Carrinho salvo para usuário: {cart.user_id}")
+                logger.info(f"Carrinho salvo para usuário: {cart.user_id}")
             else:
-                logger.error(f"❌ Falha ao salvar carrinho: {cart.user_id}")
+                logger.error(f"Falha ao salvar carrinho: {cart.user_id}")
             
             return success
             
         except Exception as e:
-            logger.error(f"❌ Erro ao salvar carrinho: {e}")
+            logger.error(f"Erro ao salvar carrinho: {e}")
             return False
     
     def find_by_user_id(self, user_id: str) -> Optional[CartEntity]:
@@ -75,12 +75,12 @@ class CartRepository:
             
             # Reconstrói a entidade usando from_dict
             cart = CartEntity.from_dict(data)
-            logger.info(f"✅ Carrinho carregado para usuário: {user_id}")
+            logger.info(f"Carrinho carregado para usuário: {user_id}")
             
             return cart
             
         except Exception as e:
-            logger.error(f"❌ Erro ao buscar carrinho: {e}")
+            logger.error(f"Erro ao buscar carrinho: {e}")
             return None
     
     def delete(self, user_id: str) -> bool:
@@ -98,14 +98,14 @@ class CartRepository:
             result = redis_client.delete(key)
             
             if result:
-                logger.info(f"🗑️ Carrinho deletado para usuário: {user_id}")
+                logger.info(f"Carrinho deletado para usuário: {user_id}")
             else:
-                logger.info(f"📭 Carrinho não existia para deletar: {user_id}")
+                logger.info(f"Carrinho não existia para deletar: {user_id}")
             
             return result > 0
             
         except Exception as e:
-            logger.error(f"❌ Erro ao deletar carrinho: {e}")
+            logger.error(f"Erro ao deletar carrinho: {e}")
             return False
     
     def exists(self, user_id: str) -> bool:
@@ -123,7 +123,7 @@ class CartRepository:
             return redis_client.exists(key)
             
         except Exception as e:
-            logger.error(f"❌ Erro ao verificar carrinho: {e}")
+            logger.error(f"Erro ao verificar carrinho: {e}")
             return False
     
     def get_ttl(self, user_id: str) -> int:
@@ -140,5 +140,5 @@ class CartRepository:
             key = self._get_key(user_id)
             return redis_client.client.ttl(key)
         except Exception as e:
-            logger.error(f"❌ Erro ao obter TTL: {e}")
+            logger.error(f"Erro ao obter TTL: {e}")
             return -2

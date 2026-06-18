@@ -1,13 +1,14 @@
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 import logging
-
+from .marketplace.cart.router import router as cart_router
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import UserInfo
 from .create.use_case import CreateCosmeticFrameUseCase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+router.include_router(cart_router, prefix="/marketplace/cart")
 
 @router.post("/create", summary="Criar nova moldura cosmética", status_code=201)
 async def create_cosmetic_frame(
@@ -72,7 +73,7 @@ async def create_cosmetic_frame(
         # 5. Tratamento de Resposta
 
         if "error" in response_data:
-            logger.error(f"❌ Erro no use_case de cosmético: {response_data.get('error')}")
+            logger.error(f"Erro no use_case de cosmético: {response_data.get('error')}")
             raise HTTPException(
                 status_code=status_code,
                 detail=response_data.get("error")

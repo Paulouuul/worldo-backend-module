@@ -13,28 +13,23 @@ class RemoveItemUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: RemoveItemRequest) -> Dict[str, Any]:
+    def execute(self, request: RemoveItemRequest) ->tuple[Dict[str, Any], int]:
         """Remove item do carrinho"""
         try:
             cart = self.cart_service.remove_item(request.user_id, request.item_id)
             
             if not cart:
                 return {
-                    "success": False,
                     "error": "Item não encontrado no carrinho",
-                    "status_code": 404
-                }
+                }, 404
             
             return {
                 "success": True,
                 "data": self.cart_service.get_cart_summary(request.user_id),
-                "status_code": 200
-            }
+            }, 200
             
         except Exception as e:
             logger.error(f"Erro no RemoveItemUseCase: {e}")
             return {
-                "success": False,
                 "error": str(e),
-                "status_code": 500
-            }
+            }, 500

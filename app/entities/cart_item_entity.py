@@ -11,6 +11,8 @@ class CartItemEntity(EntityInterface):
     seller_id: str
     seller_name: str
     image_url: Optional[str] = ""
+    thumbnail_url: Optional[str] = ""
+    max_quantity: int = 0
     
     def total(self) -> int:
         return self.price * self.quantity
@@ -27,6 +29,8 @@ class CartItemEntity(EntityInterface):
             "seller_id": self.seller_id,
             "seller_name": self.seller_name,
             "image_url": self.image_url,
+            "thumbnail_url": self.thumbnail_url,
+            "max_quantity": self.max_quantity,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "total": self.total()

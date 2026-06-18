@@ -75,14 +75,13 @@ class CartEntity(EntityInterface):
         self.updated_at = datetime.now()
 
     def to_dict(self) -> dict:
-        """Converte para dicionário (serializável para JSON)"""
-        # Converte datetime para string
+
         return {
             "id": self.id,
             "user_id": self.user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "items": [item.to_dict() for item in self.items],  # ← CHAMA to_dict do item!
+            "items": [item.to_dict() for item in self.items],
             "total_items": self.total_items,
             "total_price": self.total_price,
             "unique_items_count": self.unique_items_count

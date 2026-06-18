@@ -14,7 +14,7 @@ class UpdateQuantityUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: UpdateQuantityRequest) -> Dict[str, Any]:
+    def execute(self, request: UpdateQuantityRequest) -> tuple[Dict[str, Any], int]:
         """Atualiza quantidade de um item no carrinho"""
         try:
             cart = self.cart_service.update_quantity(
@@ -25,21 +25,16 @@ class UpdateQuantityUseCase:
             
             if not cart:
                 return {
-                    "success": False,
                     "error": "Item não encontrado no carrinho",
-                    "status_code": 404
-                }
+                }, 404
             
             return {
                 "success": True,
                 "data": self.cart_service.get_cart_summary(request.user_id),
-                "status_code": 200
-            }
+            }, 200
             
         except Exception as e:
             logger.error(f"Erro no UpdateQuantityUseCase: {e}")
             return {
-                "success": False,
                 "error": str(e),
-                "status_code": 500
-            }
+            }, 500
