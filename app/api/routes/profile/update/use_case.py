@@ -39,7 +39,7 @@ class UpdateProfileUseCase:
     async def execute(self, payload: dict) -> tuple[Dict[str, Any], int]:
         """Recebe o dicionário payload diretamente do Router"""
         try:
-            logger.info("🚀 Iniciando execução do UseCase")
+            logger.info("Iniciando execução do UseCase")
             request = UpdateProfileRequest(**payload)
             
             await self._validate_request(request)
@@ -81,7 +81,7 @@ class UpdateProfileUseCase:
             await self._rollback()
             return {"error": str(e)}, 400
         except Exception as e:
-            logger.error(f"❌ Erro crítico: {e}")
+            logger.error(f"Erro crítico: {e}")
             await self._rollback()
             return {"error": "Erro ao atualizar perfil"}, 500
 

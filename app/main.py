@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
         logger.info("=" * 80)
         logger.info("INICIALIZANDO BANCO DE DADOS...")
         await db.initialize()
-        logger.info("✅ Banco de dados inicializado com sucesso!")
+        logger.info("Banco de dados inicializado com sucesso!")
         logger.info("=" * 80)
         # Startup Rotas
         logger.info("SERVER STARTED - Available Routes:")
