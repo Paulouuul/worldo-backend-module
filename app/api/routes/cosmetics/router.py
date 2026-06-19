@@ -16,7 +16,7 @@ async def create_cosmetic_frame(
     name: str = Form(..., description="Nome da moldura"),
     packageId: str = Form(..., description="ID do pacote selecionado (cosmetic_creation_package)"),
     description: Optional[str] = Form(None, description="Descrição opcional da moldura"),
-    image: UploadFile = File(..., description="Arquivo da imagem principal (GIF, PNG, WEBP, JPG)"),
+    image: UploadFile = File(..., description="Arquivo da imagem principal"),
     thumbnail: Optional[UploadFile] = File(None, description="Arquivo da miniatura opcional"),
 ):
     """

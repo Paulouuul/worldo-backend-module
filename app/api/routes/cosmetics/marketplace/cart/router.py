@@ -44,7 +44,7 @@ async def get_my_cart(
     """Retorna o carrinho do usuário autenticado"""
     
     request = GetCartRequest(user_id=user.id)
-    response_data, status_code = GetCartUseCase().execute(request)
+    response_data, status_code = await GetCartUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
@@ -62,7 +62,7 @@ async def get_my_cart_summary(
     """Retorna apenas o resumo do carrinho (totais quantitativos e financeiros)"""
     
     request = GetCartRequest(user_id=user.id)
-    response_data, status_code = GetCartUseCase().execute(request)
+    response_data, status_code = await GetCartUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
@@ -87,7 +87,7 @@ async def add_item_to_my_cart(
         user_id=user.id, 
         item_data=payload.item_data.model_dump()
     )
-    response_data, status_code = AddItemUseCase().execute(request)
+    response_data, status_code = await AddItemUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
@@ -106,7 +106,7 @@ async def remove_item_from_my_cart(
     """Remove um item específico do carrinho do usuário autenticado"""
     
     request = RemoveItemRequest(user_id=user.id, item_id=item_id)
-    response_data, status_code = RemoveItemUseCase().execute(request)
+    response_data, status_code = await RemoveItemUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
@@ -130,7 +130,7 @@ async def update_quantity_in_my_cart(
         item_id=item_id,
         quantity=quantity
     )
-    response_data, status_code = UpdateQuantityUseCase().execute(request)
+    response_data, status_code = await UpdateQuantityUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
@@ -147,7 +147,7 @@ async def clear_my_cart(
 ):
     """Remove todos os itens do carrinho do usuário autenticado"""
     
-    response_data, status_code = ClearCartUseCase().execute(user.id)
+    response_data, status_code = await ClearCartUseCase().execute(user.id)
     
     if "error" in response_data:
         raise HTTPException(

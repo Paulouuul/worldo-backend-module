@@ -13,7 +13,7 @@ class RemoveItemUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: RemoveItemRequest) ->tuple[Dict[str, Any], int]:
+    async def execute(self, request: RemoveItemRequest) ->tuple[Dict[str, Any], int]:
         """Remove item do carrinho"""
         try:
             cart = self.cart_service.remove_item(request.user_id, request.item_id)

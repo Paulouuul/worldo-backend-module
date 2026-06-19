@@ -12,14 +12,13 @@ class GetCartUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: GetCartRequest) -> tuple[Dict[str, Any], int]:
+    async def execute(self, request: GetCartRequest) -> tuple[Dict[str, Any], int]:
         """Retorna o carrinho do usuário"""
         try:
-            cart_summary = self.cart_service.get_cart_summary(request.user_id)
-            
+            cart_details = await self.cart_service.get_cart_with_details(request.user_id)
             return {
                 "success": True,
-                "data": cart_summary
+                "data": cart_details
             }, 200
             
         except Exception as e:

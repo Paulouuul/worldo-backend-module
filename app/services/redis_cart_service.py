@@ -307,7 +307,7 @@ class RedisCartService:
         """
         Busca carrinho e enriquece com dados do PostgreSQL
         """
-        cart = self.get_cart(user_id)
+        cart = await self.sync_with_postgres(user_id)
         
         if not cart.items:
             return {

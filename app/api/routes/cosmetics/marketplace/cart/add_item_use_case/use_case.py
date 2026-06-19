@@ -14,7 +14,7 @@ class AddItemUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, request: AddItemRequest) -> tuple[Dict[str, Any], int]:
+    async def execute(self, request: AddItemRequest) -> tuple[Dict[str, Any], int]:
         """
         Adiciona item ao carrinho
         """

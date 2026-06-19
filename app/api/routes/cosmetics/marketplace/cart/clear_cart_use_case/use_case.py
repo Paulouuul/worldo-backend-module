@@ -9,7 +9,7 @@ class ClearCartUseCase:
     def __init__(self):
         self.cart_service = RedisCartService()
     
-    def execute(self, user_id: str) -> tuple[Dict[str, Any], int]:
+    async def execute(self, user_id: str) -> tuple[Dict[str, Any], int]:
         """Esvazia o carrinho"""
         try:
             self.cart_service.clear_cart(user_id)
