@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from pydantic import BaseModel
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import UserInfo
-from .add_item.use_case import AddItemUseCase, AddItemRequest
-from .get_cart.use_case import GetCartUseCase, GetCartRequest
-from .remove_item.use_case import RemoveItemUseCase, RemoveItemRequest
-from .update_quantity.use_case import UpdateQuantityUseCase, UpdateQuantityRequest
-from .clear_cart.use_case import ClearCartUseCase
+from .add_item_use_case.use_case import AddItemUseCase, AddItemRequest
+from .get_cart_use_case.use_case import GetCartUseCase, GetCartRequest
+from .remove_item_use_case.use_case import RemoveItemUseCase, RemoveItemRequest
+from .update_quantity_use_case.use_case import UpdateQuantityUseCase, UpdateQuantityRequest
+from .clear_cart_use_case.use_case import ClearCartUseCase
 
 router = APIRouter()
 

@@ -4,7 +4,7 @@ import logging
 from .marketplace.router import router as marketplace_router
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import UserInfo
-from .create.use_case import CreateCosmeticFrameUseCase
+from .create_use_case.use_case import CreateCosmeticFrameUseCase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

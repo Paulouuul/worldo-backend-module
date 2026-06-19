@@ -2,8 +2,8 @@
 from fastapi import APIRouter, Depends
 
 from app.api.routes.test.auth_test import router as auth_test
-from app.api.routes.profile import router as profile_router
-from app.api.routes.cosmetics import router as cosmetic_router
+from app.api.routes.profile.router import router as profile_router
+from app.api.routes.cosmetics.router import router as cosmetic_router
 from app.auth.dependencies import get_current_user
 
 # Router principal
