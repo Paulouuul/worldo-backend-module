@@ -8,10 +8,8 @@ from app.auth.dependencies import get_current_user
 
 # Router principal
 api_router = APIRouter()
-
-# ============================================
 # Rotas Protegidas (Precisa de Autenticação)
-# ============================================
+
 protected_router = APIRouter(
     prefix="/api/py",
     dependencies=[Depends(get_current_user)],
