@@ -32,7 +32,7 @@ class UpdateQuantityUseCase:
                     "current_quantity": item.quantity
                 }, 400
             
-            # ✅ QUARTO: Atualizar quantidade
+            # Atualizar quantidade
             updated_cart = self.cart_service.update_quantity(
                 request.user_id, 
                 request.item_id, 
