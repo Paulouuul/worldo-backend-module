@@ -32,10 +32,7 @@ class AddToCartPayload(BaseModel):
     """Envelope esperado pelo frontend: { 'item_data': { ... } }"""
     item_data: ItemCartSchema
 
-
-# ==========================================
 # ROTAS
-# ==========================================
 
 @router.get("/get", summary="Obter meu próprio carrinho")
 async def get_my_cart(
