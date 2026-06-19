@@ -1,14 +1,14 @@
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 import logging
-from .marketplace.cart.router import router as cart_router
+from .marketplace.router import router as marketplace_router
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import UserInfo
 from .create.use_case import CreateCosmeticFrameUseCase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-router.include_router(cart_router, prefix="/marketplace/cart")
+router.include_router(marketplace_router, prefix="/marketplace")
 
 @router.post("/create", summary="Criar nova moldura cosmética", status_code=201)
 async def create_cosmetic_frame(
