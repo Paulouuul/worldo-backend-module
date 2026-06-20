@@ -1,6 +1,6 @@
 # app/api/router.py
 from fastapi import APIRouter, Depends
-
+from app.core.config import settings
 from app.api.routes.test.auth_test import router as auth_test
 from app.api.routes.profile.router import router as profile_router
 from app.api.routes.cosmetics.router import router as cosmetic_router
@@ -11,7 +11,7 @@ api_router = APIRouter()
 # Rotas Protegidas (Precisa de Autenticação)
 
 protected_router = APIRouter(
-    prefix="/api/py",
+    prefix=f"{settings.api_prefix}",
     dependencies=[Depends(get_current_user)],
 )
 
@@ -22,7 +22,7 @@ protected_router.include_router(
 )
 protected_router.include_router(
     profile_router, 
-    prefix="/profile", 
+    prefix="/profile",
     tags=["Profile"]
 )
 

@@ -9,9 +9,10 @@ class Settings(BaseSettings):
     """Configurações da aplicação"""
     
     # App Settings
-    app_name: str = "Worldo Realtime Api"
+    app_name: str = "Worldo Backend"
+    api_prefix: str = ""
     debug: bool = False
-    environment: str = "development"
+    environment: str = ""
     
     # Server
     host: str = "0.0.0.0"
@@ -19,10 +20,11 @@ class Settings(BaseSettings):
 
     # Database Settings:
     database_url: str = ""
-    database_host: str = "localhost"
+    database_host: str = ""
     database_port: int = 5432
-    database_name: str = "worldo"
-    database_user: str = "admin"
+    database_name: str = ""
+    database_user: str = ""
+    database_password: str = ""
     db_pool_min_size: int = 1
     db_pool_max_size: int = 10
     db_pool_max_queries: int = 50000
@@ -30,7 +32,7 @@ class Settings(BaseSettings):
 
     
     # Redis Settings
-    redis_host: str = "localhost"
+    redis_host: str = ""
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: str = ""
@@ -44,14 +46,14 @@ class Settings(BaseSettings):
     r2_public_url: str = ""
     
     # JWT Settings
-    jwt_secret: str = "3e649cf42e8d84a5b824af1fb7033f6a7378a02f040fe5e4caff780e3c44f045"
-    jwt_algorithm: str = "HS256"
+    jwt_secret: str = ""
+    jwt_algorithm: str = ""
     
     # Next.js API URL
-    nextjs_url: str = "http://localhost:3000"
+    nextjs_url: str = ""
     
     # CORS
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str = ""
     
     model_config = SettingsConfigDict(
         env_file=".env",
