@@ -29,8 +29,8 @@ class UpdateProfileUseCase:
     MAX_AVATAR_GIF = 3 * 1024 * 1024
     MAX_COVER_GIF = 5 * 1024 * 1024
     
-    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'jfif'}
-    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jfif'}
+    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'jfif'}
+    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
     
     def __init__(self):
         self._uploaded_avatar_path = None

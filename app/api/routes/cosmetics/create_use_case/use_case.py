@@ -25,8 +25,8 @@ class CreateCosmeticFrameUseCase:
     MAX_THUMB_SIZE = 2 * 1024 * 1024  # 2MB
     MAX_THUMB_GIF = 1 * 1024 * 1024   # 1MB
     
-    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'jfif'}
-    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jfif'}
+    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'jfif'}
+    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
     
     def __init__(self):
         self._uploaded_image_path = None
@@ -151,7 +151,7 @@ class CreateCosmeticFrameUseCase:
         extension = filename.split('.')[-1].lower() if filename else ''
         
         if content_type not in self.ALLOWED_MIME_TYPES or extension not in self.ALLOWED_EXTENSIONS:
-            raise ValueError(f"Formato da {file_type} não suportado. Use JPG, PNG, GIF ou WEBP")
+            raise ValueError(f"Formato da {file_type} não suportado.")
         
         if content_type == 'image/gif' and size > max_gif_size:
             raise ValueError(f"GIF para {file_type} deve ter no máximo {max_gif_size // 1024 // 1024}MB.")
