@@ -110,7 +110,7 @@ class UpdateProfileUseCase:
         extension = filename.split('.')[-1].lower() if filename else ''
         
         if content_type not in self.ALLOWED_MIME_TYPES or extension not in self.ALLOWED_EXTENSIONS:
-            raise ValueError(f"Formato do {file_type} não suportado.")
+            raise ValueError(f"Formato do {file_type} não suportado. Use JPG, PNG, GIF ou JFIF.")
         if content_type == 'image/gif' and size > max_gif_size:
             raise ValueError(f"GIF muito grande para {file_type}.")
         if size > max_size:

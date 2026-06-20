@@ -151,7 +151,7 @@ class CreateCosmeticFrameUseCase:
         extension = filename.split('.')[-1].lower() if filename else ''
         
         if content_type not in self.ALLOWED_MIME_TYPES or extension not in self.ALLOWED_EXTENSIONS:
-            raise ValueError(f"Formato da {file_type} não suportado.")
+            raise ValueError(f"Formato da {file_type} não suportado. Use JPG, PNG, GIF ou JFIF.")
         
         if content_type == 'image/gif' and size > max_gif_size:
             raise ValueError(f"GIF para {file_type} deve ter no máximo {max_gif_size // 1024 // 1024}MB.")
