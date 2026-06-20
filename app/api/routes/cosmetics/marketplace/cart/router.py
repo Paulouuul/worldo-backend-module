@@ -8,15 +8,12 @@ from .get_cart_use_case.use_case import GetCartUseCase, GetCartRequest
 from .remove_item_use_case.use_case import RemoveItemUseCase, RemoveItemRequest
 from .update_quantity_use_case.use_case import UpdateQuantityUseCase, UpdateQuantityRequest
 from .clear_cart_use_case.use_case import ClearCartUseCase
+from .validate_cart_use_case.use_case import ValidateCartUseCase, ValidateCartRequest
+from .sync_cart_use_case.use_case import SyncCartUseCase, SyncCartRequest
 
 router = APIRouter()
 
-# ==========================================
-# SCHEMAS (Pydantic)
-# ==========================================
-
 class ItemCartSchema(BaseModel):
-    """Schema para validação dos dados do item enviados pelo frontend"""
     listing_id: str
     frame_id: str
     name: str
@@ -145,6 +142,40 @@ async def clear_my_cart(
     """Remove todos os itens do carrinho do usuário autenticado"""
     
     response_data, status_code = await ClearCartUseCase().execute(user.id)
+    
+    if "error" in response_data:
+        raise HTTPException(
+            status_code=status_code,
+            detail=response_data.get("error")
+        )
+    
+    return response_data
+
+
+@router.post("/validate", summary="Validar carrinho para checkout")
+async def validate_my_cart(
+    user: Annotated[UserInfo, Depends(get_current_user)]
+):
+    """Valida o carrinho antes do checkout"""
+    request = ValidateCartRequest(user_id=user.id)
+    response_data, status_code = await ValidateCartUseCase().execute(request)
+    
+    if "error" in response_data:
+        raise HTTPException(
+            status_code=status_code,
+            detail=response_data.get("error")
+        )
+    
+    return response_data
+
+# ✅ NOVA ROTA: Sincronizar carrinho
+@router.post("/sync", summary="Sincronizar carrinho com PostgreSQL")
+async def sync_my_cart(
+    user: Annotated[UserInfo, Depends(get_current_user)]
+):
+    """Força a sincronização do carrinho com PostgreSQL"""
+    request = SyncCartRequest(user_id=user.id)
+    response_data, status_code = await SyncCartUseCase().execute(request)
     
     if "error" in response_data:
         raise HTTPException(
