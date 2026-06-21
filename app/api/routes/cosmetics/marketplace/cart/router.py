@@ -10,6 +10,7 @@ from .update_quantity_use_case.use_case import UpdateQuantityUseCase, UpdateQuan
 from .clear_cart_use_case.use_case import ClearCartUseCase
 from .validate_cart_use_case.use_case import ValidateCartUseCase, ValidateCartRequest
 from .sync_cart_use_case.use_case import SyncCartUseCase, SyncCartRequest
+from .get_item_quantity_use_case.use_case import GetItemQuantityUseCase, GetItemQuantityRequest
 
 router = APIRouter()
 
@@ -63,12 +64,32 @@ async def get_my_cart_summary(
             status_code=status_code,
             detail=response_data.get("error")
         )
-    
+    data = response_data.get("data", {})
     return {
-        "total_items": response_data.get("total_items", 0),
-        "total_price": response_data.get("total_price", 0),
-        "unique_items_count": response_data.get("unique_items_count", 0)
+        "total_items": data.get("total_items", 0),
+        "total_price": data.get("total_price", 0),
+        "unique_items_count": data.get("unique_items_count", 0)
     }
+@router.get("/item/{listing_id}/quantity", summary="Obter quantidade de um item no carrinho")
+async def get_item_quantity(
+    listing_id: str,
+    user: Annotated[UserInfo, Depends(get_current_user)]
+):
+    """
+    Retorna a quantidade de um item específico no carrinho do usuário.
+    Útil para saber quantas unidades de um listing já foram adicionadas.
+    """
+    request = GetItemQuantityRequest(user_id=user.id, listing_id=listing_id)
+    response_data, status_code = await GetItemQuantityUseCase().execute(request)
+    
+    if "error" in response_data:
+        raise HTTPException(
+            status_code=status_code,
+            detail=response_data.get("error")
+        )
+    
+    return response_data
+
 
 @router.post("/add/", summary="Adicionar item ao meu carrinho")
 async def add_item_to_my_cart(
@@ -168,7 +189,7 @@ async def validate_my_cart(
     
     return response_data
 
-# ✅ NOVA ROTA: Sincronizar carrinho
+# Sincronizar carrinho
 @router.post("/sync", summary="Sincronizar carrinho com PostgreSQL")
 async def sync_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)]

@@ -39,6 +39,44 @@ class RedisCartService:
         
         return cart
     
+    def get_item_quantity(self, user_id: str, listing_id: str) -> int:
+        """
+        Retorna a quantidade de um item específico no carrinho do usuário.
+        
+        Args:
+            user_id: ID do usuário
+            listing_id: ID do listing
+        
+        Returns:
+            int: Quantidade do item no carrinho (0 se não encontrado)
+        """
+        cart = self.get_cart(user_id)
+        
+        for item in cart.items:
+            if item.listing_id == listing_id:
+                return item.quantity
+        
+        return 0
+
+    def get_cart_item(self, user_id: str, listing_id: str) -> Optional[CartItemEntity]:
+        """
+        Retorna o item completo do carrinho pelo listing_id.
+        
+        Args:
+            user_id: ID do usuário
+            listing_id: ID do listing
+        
+        Returns:
+            CartItemEntity: O item do carrinho ou None se não encontrado
+        """
+        cart = self.get_cart(user_id)
+        
+        for item in cart.items:
+            if item.listing_id == listing_id:
+                return item
+        
+        return None
+    
     def add_item(self, user_id: str, item_data: Dict[str, Any]) -> Optional[CartEntity]:
         """
         Adiciona item ao carrinho.
