@@ -1,7 +1,7 @@
 import logging
 import time
 import cuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -85,7 +85,7 @@ class CreateCosmeticFrameUseCase:
                     if updated_user['coins'] < 0:
                         raise RuntimeError("INSUFFICIENT_FUNDS")
                     frame_id = cuid.cuid()
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
                     # 4.2. Criar a moldura (Cosmetic Frame)
                     frame = await db.fetch_one(
                         """

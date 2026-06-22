@@ -1,7 +1,7 @@
 from app.interfaces.entity_interface import EntityInterface
 from typing import List
 from app.entities.cart_item_entity import CartItemEntity
-from datetime import datetime
+from datetime import datetime, timezone
 
 class CartEntity(EntityInterface):
     
@@ -32,11 +32,11 @@ class CartEntity(EntityInterface):
         for item in self.items:
             if item.listing_id == new_item.listing_id:
                 item.quantity += new_item.quantity
-                self.updated_at = datetime.now()
+                self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 return True
         
         self.items.append(new_item)
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         return True
     
     def remove_item(self, item_id: str) -> bool:
@@ -49,7 +49,7 @@ class CartEntity(EntityInterface):
         self.items = [item for item in self.items if item.id != item_id]
         
         if len(self.items) != original_count:
-            self.updated_at = datetime.now()
+            self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             return True
         return False
     
@@ -65,14 +65,14 @@ class CartEntity(EntityInterface):
                     self.remove_item(item_id)
                 else:
                     item.quantity = quantity
-                self.updated_at = datetime.now()
+                self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 return True
         return False
     
     def clear(self) -> None:
         """Esvazia o carrinho completamente"""
         self.items = []
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def to_dict(self) -> dict:
 
@@ -91,7 +91,6 @@ class CartEntity(EntityInterface):
     def from_dict(cls, data: dict) -> "CartEntity":
         """Cria entidade a partir de dicionário"""
         from app.entities.cart_item_entity import CartItemEntity
-        from datetime import datetime
         
         # Converte strings ISO para datetime
         created_at = None

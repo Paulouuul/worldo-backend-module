@@ -1,7 +1,7 @@
 # app/interfaces/entity_interface.py
 from pydantic import BaseModel
 from typing import List, Any, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 class EntityInterface(BaseModel):
@@ -24,11 +24,11 @@ class EntityInterface(BaseModel):
         
         # Gera created_at automaticamente
         if 'created_at' not in data or not data['created_at']:
-            data['created_at'] = datetime.now()
+            data['created_at'] = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Gera updated_at automaticamente
         if 'updated_at' not in data or not data['updated_at']:
-            data['updated_at'] = datetime.now()
+            data['updated_at'] = datetime.now(timezone.utc).replace(tzinfo=None)
         
         super().__init__(**data)
     
@@ -62,7 +62,7 @@ class EntityInterface(BaseModel):
             if key not in protected and hasattr(self, key):
                 setattr(self, key, value)
         
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         return self
     
     @classmethod
