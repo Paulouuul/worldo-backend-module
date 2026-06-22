@@ -12,8 +12,8 @@ class RedisCartService:
     """Serviço para gerenciar carrinho de compras"""
     
     # Limites de negócio
-    MAX_ITEMS_PER_CART = 50  # Máximo de itens diferentes no carrinho
-    MAX_QUANTITY_PER_ITEM = 99  # Máximo de unidades por item
+    MAX_ITEMS_PER_CART = 50
+    MAX_QUANTITY_PER_ITEM = 99
     
     def __init__(self):
         self.repository = CartRepository()

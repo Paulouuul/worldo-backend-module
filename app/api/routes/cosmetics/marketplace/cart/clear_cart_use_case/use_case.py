@@ -1,4 +1,3 @@
-
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
 import logging
@@ -10,17 +9,24 @@ class ClearCartUseCase:
         self.cart_service = RedisCartService()
     
     async def execute(self, user_id: str) -> tuple[Dict[str, Any], int]:
-        """Esvazia o carrinho"""
+        """
+        Remove todos os itens do carrinho do usuário.
+        Mantém o carrinho vazio no Redis para futuras adições.
+        """
         try:
+
+            # Limpar o carrinho
             self.cart_service.clear_cart(user_id)
             
+            # Retornar resumo do carrinho vazio
             return {
                 "success": True,
+                "message": "Carrinho esvaziado com sucesso",
                 "data": self.cart_service.get_cart_summary(user_id),
             }, 200
             
         except Exception as e:
-            logger.error(f"Erro no ClearCartUseCase: {e}")
+            logger.error(f"Erro no ClearCartUseCase para usuário {user_id}: {e}", exc_info=True)
             return {
-                "error": str(e)
+                "error": "Erro interno ao esvaziar carrinho"
             }, 500

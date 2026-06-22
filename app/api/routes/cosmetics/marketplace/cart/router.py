@@ -99,7 +99,8 @@ async def add_item_to_my_cart(
     """Adiciona um item ao carrinho do usuário autenticado"""
     
     request = AddItemRequest(
-        user_id=user.id, 
+        user_id=user.id,
+        public_id=user.public_id,
         item_data=payload.item_data.model_dump()
     )
     response_data, status_code = await AddItemUseCase().execute(request)
