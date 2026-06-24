@@ -35,9 +35,10 @@ class RedisCartService:
         if not cart:
             logger.info(f"Criando novo carrinho para usuário: {user_id}")
             cart = CartEntity(user_id=user_id)
-            self.repository.save(cart)
         
         return cart
+    
+
     
     def get_item_quantity(self, user_id: str, listing_id: str) -> int:
         """
@@ -158,7 +159,10 @@ class RedisCartService:
         cart = self.get_cart(user_id)
         
         if cart.remove_item(item_id):
-            self.repository.save(cart)
+            if not cart.items:
+                self.repository.delete(user_id)
+            else:
+                self.repository.save(cart)
             logger.info(f"Item {item_id} removido do carrinho do usuário {user_id}")
             return cart
         
@@ -206,7 +210,7 @@ class RedisCartService:
         """
         cart = self.get_cart(user_id)
         cart.clear()
-        self.repository.save(cart)
+        self.repository.delete(user_id)
         
         logger.info(f"Carrinho do usuário {user_id} foi esvaziado")
         return cart
