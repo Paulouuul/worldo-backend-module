@@ -26,7 +26,7 @@ class ValidateCartUseCase:
             else:
                 return {
                     "valid": False,
-                    "errors": validation["errors"],
+                    "error": validation["error"],
                     "cart": validation["cart"].to_dict(),
                     "message": "Carrinho possui itens com problema"
                 }, 400

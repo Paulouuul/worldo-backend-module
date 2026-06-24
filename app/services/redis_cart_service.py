@@ -120,7 +120,7 @@ class RedisCartService:
         # VALIDAR SE NÃO EXCEDE O ESTOQUE
         if max_quantity > 0 and new_quantity > max_quantity:
             logger.warning(
-                f"❌ Quantidade {new_quantity} excede o estoque disponível {max_quantity} "
+                f"Quantidade {new_quantity} excede o estoque disponível {max_quantity} "
                 f"para o item '{item_data['name']}'"
             )
             return None
@@ -320,28 +320,37 @@ class RedisCartService:
     async def validate_for_checkout(self, user_id: str) -> Dict[str, Any]:
         """
         Valida todos os itens do carrinho antes do checkout.
+        Retorna UMA ÚNICA mensagem de erro genérica.
         """
-        cart = await self.sync_with_postgres(user_id)  # ← await
+        cart = await self.sync_with_postgres(user_id)
         
-        errors = []
+        # Se carrinho vazio
+        if not cart.items:
+            return {
+                "valid": False,
+                "error": "Seu carrinho está vazio",
+                "cart": cart
+            }
+        
+        # Verifica se há problemas
+        has_errors = False
         for item in cart.items:
-            if item.quantity > item.max_quantity:
-                errors.append({
-                    "item_id": item.id,
-                    "name": item.name,
-                    "message": f"Quantidade solicitada ({item.quantity}) excede o estoque ({item.max_quantity})"
-                })
-            
-            if item.max_quantity == 0:
-                errors.append({
-                    "item_id": item.id,
-                    "name": item.name,
-                    "message": "Item sem estoque disponível"
-                })
+            if item.max_quantity == 0 or item.quantity > item.max_quantity:
+                has_errors = True
+                break
         
+        # Se não tem erros
+        if not has_errors:
+            return {
+                "valid": True,
+                "error": None,
+                "cart": cart
+            }
+        
+        # Erro
         return {
-            "valid": len(errors) == 0,
-            "errors": errors,
+            "valid": False,
+            "error": "Alguns itens do seu carrinho estão indisponíveis ou com quantidade excedida. Não foi possível completar a compra.",
             "cart": cart
         }
     
