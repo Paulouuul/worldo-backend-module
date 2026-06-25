@@ -57,9 +57,10 @@ class CreateCosmeticFrameUseCase:
                 return {"error": "Pacote inválido"}, 400
                 
             user_coins = await self._get_user_coins(request.user_id)
-            if user_coins < package['totalCost']:
+            total_cost = int(package['totalCost']) 
+            if user_coins < total_cost:
                 return {
-                    "error": f"Moedas insuficientes. Você precisa de {package['totalCost']} moedas."
+                    "error": f"Moedas insuficientes. Você precisa de {total_cost} moedas."
                 }, 400
 
             # 3. Processar Uploads (Memória -> WebP -> R2)
@@ -79,7 +80,7 @@ class CreateCosmeticFrameUseCase:
                     # 4.1. Debitar moedas
                     updated_user = await db.fetch_one(
                         """UPDATE users SET coins = coins - $1 WHERE id = $2 RETURNING coins""",
-                        package['totalCost'], request.user_id
+                        total_cost, request.user_id
                     )
                     
                     if updated_user['coins'] < 0:
@@ -94,11 +95,11 @@ class CreateCosmeticFrameUseCase:
                         RETURNING *
                         """,
                         frame_id, request.name, request.description or '', new_image_url, new_thumb_url,
-                        package['rarity'], package['quantity'], request.user_id, now, now
+                        package['rarity'], int(package['quantity']), request.user_id, now, now
                     )
                     
                     # 4.3. Adicionar itens ao inventário do usuário
-                    for _ in range(package['quantity']):
+                    for _ in range(int(package['quantity'])):
                         item_id = cuid.cuid()
                         await db.execute(
                             """INSERT INTO user_frame_item ("id","frameId", "ownerId", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5)""",
@@ -112,7 +113,7 @@ class CreateCosmeticFrameUseCase:
                         INSERT INTO coin_transaction ("id", "userId", amount, balance, type, description, "createdAt")
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
                         """,
-                        transaction_id, request.user_id, -package['totalCost'], updated_user['coins'], 'spend',
+                        transaction_id, request.user_id, -total_cost, updated_user['coins'], 'spend',
                         f"Criação de moldura: {request.name} ({package['rarity']}) - Pacote {package['name']}", now
                     )
                     
@@ -124,7 +125,7 @@ class CreateCosmeticFrameUseCase:
             return {
                 "success": True,
                 "frame": dict(frame),
-                "message": f"Moldura criada! {package['quantity']} unidade(s) do pacote {package['name']} adicionadas ao seu inventário."
+                "message": f"Moldura criada! {int(package['quantity'])} unidade(s) do pacote {package['name']} adicionadas ao seu inventário."
             }, 201
 
         except ValueError as e:
@@ -164,7 +165,7 @@ class CreateCosmeticFrameUseCase:
 
     async def _get_user_coins(self, user_id: str) -> int:
         user = await db.fetch_one('SELECT coins FROM users WHERE id = $1', user_id)
-        return user['coins'] if user else 0
+        return int(user['coins']) if user else 0
 
     # ============================================
     # MÉTODOS DE PROCESSAMENTO DE IMAGEM
