@@ -11,3 +11,12 @@ da rede social [Worldo - Social Network](https://github.com/Paulouuul/worldo-soc
 - Edição de perfil de usuário e informações, incluindo troca de foto de perfil/banner e armazernamento de mídia no Cloudflare R2
 - Carrinho de compras de cosméticos do Marketplace armazenado em cache no Redis
 - Autenticação e validação de credenciais utilizando tokens JWT
+
+## Tecnologias
+- Python
+- FastApi
+- Jwt
+- PostgreSql
+- Redis
+- Docker
+- Cloudflare R2
