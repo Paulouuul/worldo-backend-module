@@ -3,7 +3,7 @@
 ## Resumo
 
 Repositório dedicado ao módulo de backend para integração com o projeto
-da rede social "[Worldo - Social Network](https://github.com/Paulouuul/worldo-social-network)".
+da rede social [Worldo - Social Network](https://github.com/Paulouuul/worldo-social-network).
 
 ## Funcionalidades já implementadas no backend
 
