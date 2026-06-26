@@ -151,7 +151,7 @@ async def update_quantity_in_my_cart(
     if "error" in response_data:
         raise HTTPException(
             status_code=status_code,
-            detail=response_data.get("error")
+            detail=response_data
         )
     
     return response_data
@@ -185,7 +185,7 @@ async def validate_my_cart(
     if "error" in response_data:
         raise HTTPException(
             status_code=status_code,
-            detail=response_data.get("error")
+            detail=response_data
         )
     
     return response_data
