@@ -21,7 +21,7 @@ def get_current_user(
 ) -> UserInfo:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Usuário não autenticado. Por favor, faça login novamente.",
+        detail="Não autenticado",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
@@ -39,7 +39,7 @@ def get_current_user(
         logger.warning("Token expirado")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expirado. Por favor, faça login novamente.",
+            detail="Token expirado.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except JWTError as e:
