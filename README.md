@@ -53,13 +53,10 @@ pip install -r requirements.txt
 - Configure os valores de acordo com o seu ambiente de desenvolvimento
 
 ### 4. Inicialização da api
+
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-
-
-### Criação de ambiente virtual
-
 
 ## Tecnologias
 - Python
