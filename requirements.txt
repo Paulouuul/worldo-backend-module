@@ -20,7 +20,7 @@ websockets==12.0
 
 # Redis
 redis==5.0.1
-redis-simplify==1.1.0
+redis-simplify==2.1.4
 
 # AWS S3 (compatível com R2)
 boto3==1.34.0
