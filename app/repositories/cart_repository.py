@@ -2,7 +2,6 @@
 from app.core.redis_client import redis_client
 from app.entities.cart_entity import CartEntity
 from typing import Optional
-import json
 import logging
 
 logger = logging.getLogger(__name__)
