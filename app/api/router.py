@@ -32,11 +32,4 @@ protected_router.include_router(
     tags=["Cosmetics"]
 )
 
-# Rotas Públicas (Não Precisa de Autenticação)
-auth_router_public = APIRouter(
-    prefix="/api/py/auth",
-    tags=["Authentication"]
-)
-
 api_router.include_router(protected_router)
-api_router.include_router(auth_router_public)
