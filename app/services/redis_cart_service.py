@@ -140,7 +140,9 @@ class RedisCartService:
         )
         
         cart.add_item(new_item)
-        self.repository.save(cart)
+        if not self.repository.save(cart):  # ← Verifica!
+            logger.error(f"Falha ao salvar carrinho no Redis: {user_id}")
+            return None
         
         logger.info(f"Item adicionado ao carrinho do usuário {user_id}: {new_item.name}")
         return cart
@@ -160,9 +162,13 @@ class RedisCartService:
         
         if cart.remove_item(item_id):
             if not cart.items:
-                self.repository.delete(user_id)
+                if not self.repository.delete(user_id):
+                    logger.error(f"Falha ao deletar carrinho vazio: {user_id}")
+                    return None
             else:
-                self.repository.save(cart)
+                if not self.repository.save(cart):
+                    logger.error(f"Falha ao salvar carrinho após remoção: {user_id}")
+                    return None
             logger.info(f"Item {item_id} removido do carrinho do usuário {user_id}")
             return cart
         
@@ -191,8 +197,11 @@ class RedisCartService:
         cart = self.get_cart(user_id)
         
         if cart.update_quantity(item_id, quantity):
-            self.repository.save(cart)
-            logger.info(f"Quantidade do item {item_id} atualizada para {quantity} no carrinho do usuário {user_id}")
+            if not self.repository.save(cart):  # ← Verifica!
+                logger.error(f"Falha ao salvar carrinho após atualização: {user_id}")
+                return None
+            
+            logger.info(f"Quantidade do item {item_id} atualizada para {quantity}")
             return cart
         
         logger.warning(f"Item {item_id} não encontrado no carrinho do usuário {user_id}")
@@ -210,7 +219,9 @@ class RedisCartService:
         """
         cart = self.get_cart(user_id)
         cart.clear()
-        self.repository.delete(user_id)
+        if not self.repository.delete(user_id):
+            logger.error(f"Falha ao esvaziar carrinho: {user_id}")
+            return None
         
         logger.info(f"Carrinho do usuário {user_id} foi esvaziado")
         return cart
@@ -313,7 +324,8 @@ class RedisCartService:
             cart.remove_item(item_id)
         
         if items_to_remove:
-            self.repository.save(cart)
+            if not self.repository.save(cart):
+                logger.error(f"Falha ao sincronizar carrinho: {user_id}")
         
         return cart
     

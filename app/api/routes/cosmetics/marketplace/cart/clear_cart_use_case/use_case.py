@@ -15,16 +15,18 @@ class ClearCartUseCase:
         """
         try:
 
-            # Limpar o carrinho
-            self.cart_service.clear_cart(user_id)
-            
-            # Retornar resumo do carrinho vazio
+            cart = self.cart_service.clear_cart(user_id)
+        
+            if cart is None:
+                logger.error(f"Falha ao esvaziar carrinho: {user_id}")
+                return {
+                    "error": "Erro ao esvaziar carrinho. Tente novamente."
+                }, 500
             return {
                 "success": True,
                 "message": "Carrinho esvaziado com sucesso",
                 "data": self.cart_service.get_cart_summary(user_id),
             }, 200
-            
         except Exception as e:
             logger.error(f"Erro no ClearCartUseCase para usuário {user_id}: {e}", exc_info=True)
             return {
