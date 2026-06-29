@@ -24,6 +24,8 @@ class CreateCosmeticFrameUseCase:
     MAX_FRAME_GIF = 3 * 1024 * 1024   # 3MB
     MAX_THUMB_SIZE = 2 * 1024 * 1024  # 2MB
     MAX_THUMB_GIF = 1 * 1024 * 1024   # 1MB
+    MAX_NAME_SIZE = 50
+    MAX_DESCRIPTION_SIZE = 500
     
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'jfif'}
     ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
@@ -40,7 +42,20 @@ class CreateCosmeticFrameUseCase:
             # Validação Rápida (Fail Fast)
             if not payload.get('name') or not payload.get('package_id'):
                 raise ValueError("Campos obrigatórios inválidos ou faltando (name, package_id)")
+            
+             # Validação de tamanho do nome
+            name = payload.get('name', '').strip()
+            if len(name) > self.MAX_NAME_SIZE:
+                raise ValueError(f"Nome deve ter no máximo {self.MAX_NAME_SIZE} caracteres")
+            if len(name) < 3:
+                raise ValueError("Nome deve ter pelo menos 3 caracteres")
                 
+            # Validação de tamanho da descrição
+            description = payload.get('description', '').strip()
+            if description and len(description) > self.MAX_DESCRIPTION_SIZE:
+                raise ValueError(f"Descrição deve ter no máximo {self.MAX_DESCRIPTION_SIZE} caracteres")
+                
+                    
             if not payload.get('image'):
                 raise ValueError("Imagem principal é obrigatória")
 
