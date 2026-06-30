@@ -51,9 +51,13 @@ class CreateCosmeticFrameUseCase:
                 raise ValueError("Nome deve ter pelo menos 3 caracteres")
                 
             # Validação de tamanho da descrição
-            description = payload.get('description', '').strip()
-            if description and len(description) > self.MAX_DESCRIPTION_SIZE:
-                raise ValueError(f"Descrição deve ter no máximo {self.MAX_DESCRIPTION_SIZE} caracteres")
+            description = payload.get('description')
+            if description is not None:
+                description = str(description).strip()
+                if len(description) > self.MAX_DESCRIPTION_SIZE:
+                    raise ValueError(f"Descrição deve ter no máximo {self.MAX_DESCRIPTION_SIZE} caracteres")
+            else:
+                description = ''
                 
                     
             if not payload.get('image'):
@@ -61,12 +65,12 @@ class CreateCosmeticFrameUseCase:
 
             request = CreateCosmeticFrameRequest(**payload)
             
-            # 1. Validações de Arquivo
+            # Validações de Arquivo
             self._validate_file(request.image, "moldura", self.MAX_FRAME_SIZE, self.MAX_FRAME_GIF)
             if request.thumbnail:
                 self._validate_file(request.thumbnail, "miniatura", self.MAX_THUMB_SIZE, self.MAX_THUMB_GIF)
                 
-            # 2. Validação de Regras de Negócio (Pacote e Moedas)
+            # Validação de Regras de Negócio (Pacote e Moedas)
             package = await self._get_package(request.package_id)
             if not package:
                 return {"error": "Pacote inválido"}, 400
@@ -78,7 +82,7 @@ class CreateCosmeticFrameUseCase:
                     "error": f"Moedas insuficientes. Você precisa de {total_cost} moedas."
                 }, 400
 
-            # 3. Processar Uploads (Memória -> WebP -> R2)
+            # Processar Uploads (Memória -> WebP -> R2)
             timestamp = int(time.time() * 1000) # Usando ms para evitar conflitos
             new_image_url, self._uploaded_image_path = await self._process_frame(request, timestamp)
             
@@ -87,12 +91,12 @@ class CreateCosmeticFrameUseCase:
             else:
                 new_thumb_url = new_image_url
 
-            # 4. Transação no Banco de Dados
+            # Transação no Banco de Dados
             try:
                 # O bloco "async with db.transaction()" garante que se algo falhar,
                 # nenhuma query desta sessão será salva no PostgreSQL.
                 async with db.transaction():
-                    # 4.1. Debitar moedas
+                    # Debitar moedas
                     updated_user = await db.fetch_one(
                         """UPDATE users SET coins = coins - $1 WHERE id = $2 RETURNING coins""",
                         total_cost, request.user_id
@@ -102,7 +106,7 @@ class CreateCosmeticFrameUseCase:
                         raise RuntimeError("INSUFFICIENT_FUNDS")
                     frame_id = cuid.cuid()
                     now = datetime.now(timezone.utc).replace(tzinfo=None)
-                    # 4.2. Criar a moldura (Cosmetic Frame)
+                    # Criar a moldura (Cosmetic Frame)
                     frame = await db.fetch_one(
                         """
                         INSERT INTO cosmetic_frame (id, name, description, "imageUrl", "thumbnailUrl", rarity, stock, "createdBy", "createdAt", "updatedAt")
@@ -113,7 +117,7 @@ class CreateCosmeticFrameUseCase:
                         package['rarity'], int(package['quantity']), request.user_id, now, now
                     )
                     
-                    # 4.3. Adicionar itens ao inventário do usuário
+                    # Adicionar itens ao inventário do usuário
                     for _ in range(int(package['quantity'])):
                         item_id = cuid.cuid()
                         await db.execute(
@@ -121,7 +125,7 @@ class CreateCosmeticFrameUseCase:
                             item_id, frame['id'], request.user_id, now, now
                         )
                         
-                    # 4.4. Registrar histórico da transação
+                    # Registrar histórico da transação
                     transaction_id = cuid.cuid() 
                     await db.execute(
                         """
@@ -156,9 +160,7 @@ class CreateCosmeticFrameUseCase:
             await self._rollback()
             return {"error": "Erro interno ao criar moldura", "details": str(e)}, 500
 
-    # ============================================
     # MÉTODOS DE VALIDAÇÃO E BD
-    # ============================================
 
     def _validate_file(self, file_data: Dict, file_type: str, max_size: int, max_gif_size: int):
         filename = file_data.get('filename', '')
@@ -182,9 +184,7 @@ class CreateCosmeticFrameUseCase:
         user = await db.fetch_one('SELECT coins FROM users WHERE id = $1', user_id)
         return int(user['coins']) if user else 0
 
-    # ============================================
     # MÉTODOS DE PROCESSAMENTO DE IMAGEM
-    # ============================================
 
     async def _process_frame(self, request: CreateCosmeticFrameRequest, timestamp: int):
         is_gif = request.image['content_type'] == 'image/gif'
@@ -232,9 +232,7 @@ class CreateCosmeticFrameUseCase:
         url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
         return url, path
 
-    # ============================================
     # ROLLBACK DE ARQUIVOS NO R2
-    # ============================================
 
     async def _rollback(self):
         """Em caso de falha, exclui os arquivos enviados para o R2 para não virar lixo de bucket"""
