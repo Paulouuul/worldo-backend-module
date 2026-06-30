@@ -96,9 +96,9 @@ class UpdateProfileUseCase:
             return {"error": "Erro ao atualizar perfil"}, 500
 
     async def _validate_request(self, request: UpdateProfileRequest):
-        # ============================================
+        
         # VALIDAÇÃO DO NOME
-        # ============================================
+        
         if not request.name or not request.name.strip():
             raise ValueError("Nome é obrigatório")
         
@@ -108,9 +108,9 @@ class UpdateProfileUseCase:
         if len(name) > self.MAX_NAME_LENGTH:
             raise ValueError(f"Nome deve ter no máximo {self.MAX_NAME_LENGTH} caracteres")
         
-        # ============================================
+        
         # VALIDAÇÃO DO USERNAME
-        # ============================================
+        
         if not request.username or not request.username.strip():
             raise ValueError("Username é obrigatório")
         
@@ -126,25 +126,25 @@ class UpdateProfileUseCase:
         if existing_user:
             raise ValueError("Username já em uso")
         
-        # ============================================
+        
         # VALIDAÇÃO DA BIO
-        # ============================================
+        
         if request.bio is not None:
             bio = request.bio.strip() if request.bio else ''
             if len(bio) > self.MAX_BIO_LENGTH:
                 raise ValueError(f"Bio deve ter no máximo {self.MAX_BIO_LENGTH} caracteres")
         
-        # ============================================
+        
         # VALIDAÇÃO DA LOCALIZAÇÃO
-        # ============================================
+        
         if request.location is not None:
             location = request.location.strip() if request.location else ''
             if len(location) > self.MAX_LOCATION_LENGTH:
                 raise ValueError(f"Localização deve ter no máximo {self.MAX_LOCATION_LENGTH} caracteres")
         
-        # ============================================
+        
         # VALIDAÇÃO DO WEBSITE
-        # ============================================
+        
         if request.website is not None:
             website = request.website.strip() if request.website else ''
             if len(website) > self.MAX_WEBSITE_LENGTH:
@@ -156,9 +156,9 @@ class UpdateProfileUseCase:
                 # Poderia armazenar com https:// ou validar
                 # raise ValueError("Website deve começar com http:// ou https://")
         
-        # ============================================
+        
         # VALIDAÇÃO DOS ARQUIVOS
-        # ============================================
+        
         if request.avatar:
             self._validate_file(request.avatar, "avatar", self.MAX_AVATAR_SIZE, self.MAX_AVATAR_GIF)
         if request.cover:
