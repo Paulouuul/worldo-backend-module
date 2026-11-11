@@ -1,3 +1,8 @@
+# app/api/routes/profile/update_use_case/use_case.py
+# Caso de uso de PUT /profile/update: valida e normaliza os dados do perfil, converte
+# avatar/capa para WebP, envia ao R2, atualiza o usuário no PostgreSQL e remove do R2 as imagens
+# substituídas.
+
 import logging
 import re
 import time
@@ -19,6 +24,7 @@ URL_REGEX = re.compile(
     r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
 class UpdateProfileRequest(BaseModel):
+    """Dados recebidos para atualizar o perfil (texto, arquivos e flags de remoção)."""
     user_id: str
     name: str
     username: str
@@ -31,6 +37,11 @@ class UpdateProfileRequest(BaseModel):
     remove_cover: bool = False
 
 class UpdateProfileUseCase:
+    """Atualiza o perfil do usuário.
+
+    Limites: avatar até 5MB (GIF 3MB), capa até 8MB (GIF 5MB), nome de 3 a 50 caracteres, bio
+    até 500, localização até 30, site até 200. Formatos aceitos: JPG, PNG, GIF e JFIF.
+    """
     MAX_AVATAR_SIZE = 5 * 1024 * 1024   # 5MB
     MAX_COVER_SIZE = 8 * 1024 * 1024    # 8MB
     MAX_AVATAR_GIF = 3 * 1024 * 1024    # 3MB
@@ -46,20 +57,26 @@ class UpdateProfileUseCase:
     ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
 
     async def execute(self, payload: dict) -> tuple[Dict[str, Any], int]:
+        """Executa a atualização do perfil.
+
+        Valida os dados, confere se o usuário existe, envia as novas imagens ao R2, atualiza o
+        banco e apaga as imagens antigas substituídas ou removidas. Em falha, remove do R2 o que
+        foi enviado. Retorna (resposta, status HTTP).
+        """
         uploaded_paths = []
         try:
             logger.info("Iniciando execução do UseCase")
             request = UpdateProfileRequest(**payload)
             
-            # 1. Sanitizar e validar dados de texto primeiro
+            # Valida os dados antes de qualquer upload
             sanitized_data = await self._validate_and_sanitize(request)
             
-            # 2. Verificar existência do usuário ANTES de processar/fazer upload de mídia
+            # Usuário precisa existir antes de enviar mídia
             current_user = await self._get_current_user(request.user_id)
             if not current_user:
                 return {"error": "Usuário não encontrado"}, 404
 
-            # 3. Processar uploads
+            # Envia as novas imagens ao R2
             new_avatar_url, uploaded_avatar_path = await self._process_avatar(request)
             if uploaded_avatar_path:
                 uploaded_paths.append(uploaded_avatar_path)
@@ -68,13 +85,13 @@ class UpdateProfileUseCase:
             if uploaded_cover_path:
                 uploaded_paths.append(uploaded_cover_path)
 
-            # 4. Atualizar no banco
+            # Atualiza o usuário no banco
             updated_user = await self._update_user(request.user_id, sanitized_data, new_avatar_url, new_cover_url, request.remove_avatar, request.remove_cover)
             if not updated_user:
                 await self._rollback(uploaded_paths)
                 return {"error": "Erro ao atualizar perfil"}, 500
 
-            # 5. Limpar arquivos antigos substituídos/removidos
+            # Apaga do R2 as imagens antigas substituídas/removidas
             await self._cleanup_old_files(
                 current_user, new_avatar_url, new_cover_url,
                 request.remove_avatar, request.remove_cover
@@ -104,9 +121,13 @@ class UpdateProfileUseCase:
             return {"error": "Erro interno ao atualizar perfil"}, 500
 
     async def _validate_and_sanitize(self, request: UpdateProfileRequest) -> dict:
+        """Normaliza e valida nome, username (único, minúsculo, 3–30 caracteres [a-z0-9_]), bio,
+        localização, site (prefixa https:// quando falta) e arquivos. Retorna os campos de
+        texto.
+        """
         data = {}
 
-        # NOME
+        # Nome de exibição
         name = " ".join(request.name.strip().split())
         if not name:
             raise ValueError("Nome de Exibição é obrigatório")
@@ -114,7 +135,7 @@ class UpdateProfileUseCase:
             raise ValueError(f"Nome de Exibição deve ter entre {self.MIN_NAME_LENGTH} e {self.MAX_NAME_LENGTH} caracteres")
         data['name'] = name
 
-        # USERNAME
+        # Nome de usuário
         if not request.username or not request.username.strip():
             raise ValueError("Nome de Usuário é obrigatório")
         
@@ -130,21 +151,21 @@ class UpdateProfileUseCase:
             raise ValueError("Nome de Usuário já em uso")
         data['username'] = sanitized_username
 
-        # BIO
+        # Bio
         if request.bio is not None:
             bio = request.bio.strip() if request.bio else None
             if bio and len(bio) > self.MAX_BIO_LENGTH:
                 raise ValueError(f"Bio deve ter no máximo {self.MAX_BIO_LENGTH} caracteres")
             data['bio'] = bio
 
-        # LOCALIZAÇÃO
+        # Localização
         if request.location is not None:
             location = request.location.strip() if request.location else None
             if location and len(location) > self.MAX_LOCATION_LENGTH:
                 raise ValueError(f"Localização deve ter no máximo {self.MAX_LOCATION_LENGTH} caracteres")
             data['location'] = location
 
-        # WEBSITE (Correção da validação da URL)
+        # Site (sem espaços, https:// por padrão)
         if request.website is not None:
             website = "".join(request.website.strip().split()) if request.website else None
             if website:
@@ -156,7 +177,7 @@ class UpdateProfileUseCase:
                     raise ValueError("URL inválida.")
             data['website'] = website
 
-        # ARQUIVOS
+        # Arquivos
         if request.avatar:
             self._validate_file(request.avatar, "avatar", self.MAX_AVATAR_SIZE, self.MAX_AVATAR_GIF)
         if request.cover:
@@ -165,6 +186,7 @@ class UpdateProfileUseCase:
         return data
 
     def _validate_file(self, file_data: Dict, file_type: str, max_size: int, max_gif_size: int):
+        """Valida formato (MIME e extensão) e tamanho do arquivo, com limite menor para GIF."""
         filename = file_data.get('filename', '')
         content_type = file_data.get('content_type', '')
         size = file_data.get('size', 0)
@@ -180,6 +202,9 @@ class UpdateProfileUseCase:
             raise ValueError(f"{file_type.capitalize()} muito grande. Máximo: {max_size // 1024 // 1024}MB.")
 
     async def _process_avatar(self, request: UpdateProfileRequest):
+        """Converte o avatar para WebP 512x512 (animado se GIF), envia ao R2 e retorna (url,
+        caminho) ou (None, None) sem avatar.
+        """
         if request.avatar and request.avatar.get('data'):
             avatar_data = request.avatar
             is_gif = avatar_data['content_type'] == 'image/gif'
@@ -202,6 +227,9 @@ class UpdateProfileUseCase:
         return None, None
 
     async def _process_cover(self, request: UpdateProfileRequest):
+        """Converte a capa para WebP 1920x400 (animada se GIF), envia ao R2 e retorna (url,
+        caminho) ou (None, None) sem capa.
+        """
         if request.cover and request.cover.get('data'):
             cover_data = request.cover
             is_gif = cover_data['content_type'] == 'image/gif'
@@ -224,12 +252,16 @@ class UpdateProfileUseCase:
         return None, None
 
     async def _get_current_user(self, user_id: str):
+        """Busca id, avatar e capa atuais do usuário ativo."""
         return await db.fetch_one(
             'SELECT id, avatar, "coverImage" FROM users WHERE id = $1 AND "deletedAt" IS NULL',
             user_id
         )
 
     async def _update_user(self, user_id: str, sanitized_data: dict, new_avatar: str, new_cover: str, rm_avatar: bool, rm_cover: bool):
+        """Atualiza os campos do usuário (incluindo nova imagem ou remoção) e retorna o registro
+        atualizado.
+        """
         update_data = dict(sanitized_data)
 
         if new_avatar:
@@ -251,6 +283,7 @@ class UpdateProfileUseCase:
         )
 
     async def _cleanup_old_files(self, user: Dict, new_avatar: str, new_cover: str, rm_avatar: bool, rm_cover: bool):
+        """Apaga do R2 o avatar e a capa anteriores quando foram substituídos ou removidos."""
         if user.get('avatar') and (new_avatar or rm_avatar):
             path = user['avatar'].split('.com/')[-1] if '.com/' in user['avatar'] else user['avatar']
             await r2_client.delete_file(path, is_public=True)
@@ -260,6 +293,7 @@ class UpdateProfileUseCase:
             await r2_client.delete_file(path, is_public=True)
 
     async def _rollback(self, paths: list):
+        """Remove do R2 os arquivos enviados nesta requisição, registrando falhas sem interromper."""
         for path in paths:
             try:
                 await r2_client.delete_file(path, is_public=True)

@@ -1,4 +1,7 @@
 # app/main.py
+# Ponto de entrada da API FastAPI: cria a aplicação, inicializa o pool do PostgreSQL no startup,
+# configura CORS, registra os routers e expõe o health check.
+
 import logging
 from contextlib import asynccontextmanager
 from app.core.database import db
@@ -17,17 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
-    """Cria e configura a aplicação FastAPI"""
+    """Cria e configura a aplicação FastAPI (lifespan, CORS, routers e /health)."""
     
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Inicializando Banco de DADIS
+        """Ciclo de vida da aplicação: inicializa o banco e lista as rotas no startup; registra o
+        shutdown.
+        """
+        # Inicializa o pool de conexões do PostgreSQL
         logger.info("=" * 80)
         logger.info("INICIALIZANDO BANCO DE DADOS...")
         await db.initialize()
         logger.info("Banco de dados inicializado com sucesso!")
         logger.info("=" * 80)
-        # Startup Rotas
+        # Lista no log todas as rotas registradas (HTTP e WebSocket)
         logger.info("SERVER STARTED - Available Routes:")
         logger.info("=" * 80)
         
@@ -39,12 +45,12 @@ def create_app() -> FastAPI:
                 logger.info(f"  {'WS':20} {route.path}")
         
         logger.info("=" * 80)
-        yield  # Aqui a aplicação roda
+        yield  # A aplicação atende requisições enquanto o contexto está aberto
         
         # Shutdown
         logger.info("SERVER SHUTDOWN")
 
-    # Criar a aplicação
+    # Documentação (/docs, /redoc) só fica disponível em modo debug
     app = FastAPI(
         title=settings.app_name,
         debug=settings.debug,
@@ -57,7 +63,7 @@ def create_app() -> FastAPI:
     # Configurar CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Em desenvolvimento, permite todos
+        allow_origins=["*"],  # Aceita qualquer origem
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -69,7 +75,7 @@ def create_app() -> FastAPI:
     # Health check 
     @app.get("/health", tags=["System"])
     async def health_check():
-        """Verifica se a API está funcionando"""
+        """GET /health — informa que a API está no ar, com nome do serviço e versão."""
         return {
             "status": "ok",
             "service": settings.app_name,
@@ -80,10 +86,8 @@ def create_app() -> FastAPI:
     return app
 
 
-# Criar a instância da app
+# Instância usada pelo uvicorn (uvicorn app.main:app --reload)
 app = create_app()
-
-# Para executar: uvicorn app.main:app --reload
 
 if __name__ == "__main__":
     import uvicorn

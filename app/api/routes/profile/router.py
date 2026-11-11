@@ -1,4 +1,6 @@
 # app/api/routes/profile/router.py
+# Rotas de perfil do usuário (/profile/*, sob WORLDO_API_PREFIX). Exige JWT.
+
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from app.utils.response import success_response, error_response
@@ -23,17 +25,22 @@ async def update_my_profile(
     removeAvatar: bool = Form(False),
     removeCover: bool = Form(False),
 ):
+    """PUT /profile/update — atualiza nome, username, bio, localização, site, avatar e capa.
+
+    Recebe FormData do Next.js; avatar e capa podem ser enviados (arquivo) ou removidos
+    (removeAvatar/removeCover). Retorna os dados atualizados do usuário.
+    """
     logger.info(f"Recebendo atualização de perfil para o usuário: {user.id}")
     
     try:
-        # Lê os bytes puros do UploadFile gerado pelo FormData do Next.js
+        # Arquivos enviados são lidos em memória
         avatar_data = None
         if avatar and avatar.size > 0:
             avatar_data = {
                 "filename": avatar.filename,
                 "content_type": avatar.content_type,
                 "size": avatar.size,
-                "data": await avatar.read()  # Mantém como bytes puros
+                "data": await avatar.read()
             }
         
         cover_data = None
@@ -42,10 +49,9 @@ async def update_my_profile(
                 "filename": cover.filename,
                 "content_type": cover.content_type,
                 "size": cover.size,
-                "data": await cover.read()   # Mantém como bytes puros
+                "data": await cover.read()
             }
         
-        # Monta o dicionário com os dados
         payload = {
             "user_id": user.id,
             "name": name,

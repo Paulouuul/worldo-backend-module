@@ -1,3 +1,8 @@
+# app/api/routes/cosmetics/marketplace/cart/router.py
+# Rotas do carrinho de compras do marketplace (/cosmetics/marketplace/cart/*, sob
+# WORLDO_API_PREFIX). Todas exigem JWT e operam sobre o carrinho do usuário autenticado,
+# armazenado no Redis.
+
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query, Body
 from pydantic import BaseModel
@@ -16,6 +21,7 @@ from app.utils.response import success_response, error_response
 router = APIRouter()
 
 class ItemCartSchema(BaseModel):
+    """Dados de um anúncio enviados pelo frontend ao adicionar ao carrinho."""
     listing_id: str
     frame_id: str
     name: str
@@ -28,16 +34,17 @@ class ItemCartSchema(BaseModel):
     thumbnail_url: Optional[str] = ""
 
 class AddToCartPayload(BaseModel):
-    """Envelope esperado pelo frontend: { 'item_data': { ... } }"""
+    """Corpo do POST /add: { "item_data": { ... } }."""
     item_data: ItemCartSchema
 
-# ROTAS
 
 @router.get("/get", summary="Obter meu próprio carrinho")
 async def get_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Retorna o carrinho do usuário autenticado"""
+    """GET /cosmetics/marketplace/cart/get — carrinho completo, sincronizado com preço/estoque do
+    PostgreSQL.
+    """
     
     request = GetCartRequest(user_id=user.id)
     response_data, status_code = await GetCartUseCase().execute(request)
@@ -52,7 +59,9 @@ async def get_my_cart(
 async def get_my_cart_summary(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Retorna apenas o resumo do carrinho (totais quantitativos e financeiros)"""
+    """GET /cosmetics/marketplace/cart/get/summary — apenas os totais do carrinho (unidades, preço
+    e anúncios distintos).
+    """
     
     request = GetCartRequest(user_id=user.id)
     response_data, status_code = await GetCartUseCase().execute(request)
@@ -72,9 +81,8 @@ async def get_item_quantity(
     listing_id: str,
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """
-    Retorna a quantidade de um item específico no carrinho do usuário.
-    Útil para saber quantas unidades de um listing já foram adicionadas.
+    """GET /cosmetics/marketplace/cart/item/{listing_id}/quantity — quantas unidades do anúncio já
+    estão no carrinho.
     """
     request = GetItemQuantityRequest(user_id=user.id, listing_id=listing_id)
     response_data, status_code = await GetItemQuantityUseCase().execute(request)
@@ -91,7 +99,9 @@ async def add_item_to_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)],
     payload: AddToCartPayload = Body(..., description="Dados do item envelopados em item_data")
 ):
-    """Adiciona um item ao carrinho do usuário autenticado"""
+    """POST /cosmetics/marketplace/cart/add/ — adiciona o anúncio ao carrinho (não permite comprar
+    os próprios itens).
+    """
     
     request = AddItemRequest(
         user_id=user.id,
@@ -112,7 +122,7 @@ async def remove_item_from_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)],
     item_id: str
 ):
-    """Remove um item específico do carrinho do usuário autenticado"""
+    """DELETE /cosmetics/marketplace/cart/remove/{item_id} — remove o item do carrinho."""
     
     request = RemoveItemRequest(user_id=user.id, item_id=item_id)
     response_data, status_code = await RemoveItemUseCase().execute(request)
@@ -129,7 +139,9 @@ async def update_quantity_in_my_cart(
     item_id: str,
     quantity: int = Query(..., ge=0, description="Nova quantidade (0 remove o item)")
 ):
-    """Atualiza a quantidade de um item no carrinho do usuário autenticado"""
+    """PATCH /cosmetics/marketplace/cart/update/{item_id}?quantity=N — altera a quantidade (0
+    remove o item).
+    """
     
     request = UpdateQuantityRequest(
         user_id=user.id,
@@ -148,7 +160,7 @@ async def update_quantity_in_my_cart(
 async def clear_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Remove todos os itens do carrinho do usuário autenticado"""
+    """DELETE /cosmetics/marketplace/cart/clear — esvazia o carrinho."""
     
     response_data, status_code = await ClearCartUseCase().execute(user.id)
     
@@ -162,7 +174,9 @@ async def clear_my_cart(
 async def validate_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Valida o carrinho antes do checkout"""
+    """POST /cosmetics/marketplace/cart/validate — sincroniza e valida o carrinho antes do checkout
+    (400 se houver itens indisponíveis).
+    """
     request = ValidateCartRequest(user_id=user.id)
     response_data, status_code = await ValidateCartUseCase().execute(request)
     
@@ -171,12 +185,13 @@ async def validate_my_cart(
     
     return success_response(response_data)
 
-# Sincronizar carrinho
 @router.post("/sync", summary="Sincronizar carrinho com PostgreSQL")
 async def sync_my_cart(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Força a sincronização do carrinho com PostgreSQL"""
+    """POST /cosmetics/marketplace/cart/sync — sincroniza o carrinho com preço e estoque atuais do
+    PostgreSQL.
+    """
     request = SyncCartRequest(user_id=user.id)
     response_data, status_code = await SyncCartUseCase().execute(request)
     

@@ -1,3 +1,7 @@
+# app/entities/cart_entity.py
+# Entidade de carrinho de compras do usuário, com itens, totais e operações de adicionar,
+# remover, alterar quantidade e limpar.
+
 from app.interfaces.entity_interface import EntityInterface
 from typing import List
 from app.entities.cart_item_entity import CartItemEntity
@@ -5,29 +9,28 @@ from datetime import datetime, timezone
 
 class CartEntity(EntityInterface):
     
+    """Carrinho de compras de um usuário."""
     user_id: str
     items: List[CartItemEntity] = []
     
     @property
     def total_items(self) -> int:
-        """Número total de unidades (soma das quantidades)"""
+        """Total de unidades no carrinho (soma das quantidades)."""
         return sum(item.quantity for item in self.items)
     
     @property
     def total_price(self) -> int:
-        """Preço total do carrinho"""
+        """Preço total do carrinho em moedas."""
         return sum(item.total() for item in self.items)
     
     @property
     def unique_items_count(self) -> int:
-        """Número de produtos no carrinho"""
+        """Quantidade de anúncios distintos no carrinho."""
         return len(self.items)
     
     def add_item(self, new_item: CartItemEntity) -> bool:
-        """Adiciona item ao carrinho (se já existir, aumenta quantidade)
-        
-        Returns:
-            bool: True se adicionado com sucesso
+        """Adiciona o item ao carrinho; se o anúncio já estiver nele, soma a quantidade. Retorna
+        True.
         """
         for item in self.items:
             if item.listing_id == new_item.listing_id:
@@ -40,11 +43,7 @@ class CartEntity(EntityInterface):
         return True
     
     def remove_item(self, item_id: str) -> bool:
-        """Remove item do carrinho pelo ID
-        
-        Returns:
-            bool: True se encontrado e removido, False se não encontrado
-        """
+        """Remove o item pelo id. Retorna False se o item não existir."""
         original_count = len(self.items)
         self.items = [item for item in self.items if item.id != item_id]
         
@@ -54,10 +53,8 @@ class CartEntity(EntityInterface):
         return False
     
     def update_quantity(self, item_id: str, quantity: int) -> bool:
-        """Atualiza quantidade de um item específico
-        
-        Returns:
-            bool: True se encontrado e atualizado, False se não encontrado
+        """Define a quantidade do item (zero ou menos remove o item). Retorna False se o item não
+        existir.
         """
         for item in self.items:
             if item.id == item_id:
@@ -70,12 +67,13 @@ class CartEntity(EntityInterface):
         return False
     
     def clear(self) -> None:
-        """Esvazia o carrinho completamente"""
+        """Remove todos os itens do carrinho."""
         self.items = []
         self.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def to_dict(self) -> dict:
 
+        """Converte o carrinho em dict serializável, com itens e totais."""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -89,7 +87,7 @@ class CartEntity(EntityInterface):
     
     @classmethod
     def from_dict(cls, data: dict) -> "CartEntity":
-        """Cria entidade a partir de dicionário"""
+        """Reconstrói o carrinho (e seus itens) a partir do dict salvo no Redis."""
         from app.entities.cart_item_entity import CartItemEntity
         
         # Converte strings ISO para datetime
@@ -116,5 +114,5 @@ class CartEntity(EntityInterface):
     
     @classmethod
     def list_fields_to_not_update(cls):
-        """Campos que não podem ser atualizados diretamente"""
+        """Campos que `update()` nunca altera (inclui o user_id)."""
         return ['id', 'created_at', 'user_id']

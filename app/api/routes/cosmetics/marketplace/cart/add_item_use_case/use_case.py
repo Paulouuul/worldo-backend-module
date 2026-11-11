@@ -1,4 +1,7 @@
-# app/api/routes/cosmetic/marketplace/cart/add_item/use_case.py
+# app/api/routes/cosmetics/marketplace/cart/add_item_use_case/use_case.py
+# Caso de uso de POST /cosmetics/marketplace/cart/add/: valida e adiciona um anúncio ao
+# carrinho.
+
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
 import logging
@@ -6,18 +9,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AddItemRequest:
+    """Parâmetros: id e publicId do usuário e dados do anúncio (item_data)."""
     def __init__(self, user_id: str, public_id: str, item_data: Dict[str, Any]):
+        """Guarda os parâmetros da requisição."""
         self.user_id = user_id
         self.public_id = public_id
         self.item_data = item_data
 
 class AddItemUseCase:
+    """Adiciona um anúncio ao carrinho do usuário."""
     def __init__(self):
+        """Cria o serviço de carrinho usado pelo caso de uso."""
         self.cart_service = RedisCartService()
     
     async def execute(self, request: AddItemRequest) -> tuple[Dict[str, Any], int]:
-        """
-        Adiciona item ao carrinho com validações de negócio
+        """Valida campos obrigatórios, quantidade positiva e se o anúncio não é do próprio usuário,
+        e adiciona ao carrinho.
+
+        Quando o serviço recusa, identifica o motivo (estoque, limite de anúncios ou de
+        unidades) para a mensagem de erro. Retorna (resposta, status HTTP).
         """
         try:
 
@@ -40,16 +50,15 @@ class AddItemUseCase:
                     "error": "Você não pode comprar seus próprios itens"
                 }, 400
             
-            # DELEGAR PARA O RedisCartService (já tem validações)
+            # O serviço aplica limites de carrinho, quantidade e estoque
             cart = self.cart_service.add_item(request.user_id, request.item_data)
             
-            # TRATAR O RETORNO DO RedisCartService
+            # None indica recusa: descobre o motivo para a mensagem de erro
             if cart is None:
                 
-                # Verificar o carrinho atual
                 current_cart = self.cart_service.get_cart(request.user_id)
                 
-                # Verificar se é erro de estoque
+                # Estoque insuficiente
                 listing_id = request.item_data["listing_id"]
                 current_quantity = self.cart_service.get_item_quantity(request.user_id, listing_id)
                 requested_quantity = request.item_data.get("quantity", 1)
@@ -61,13 +70,13 @@ class AddItemUseCase:
                         "error": f"Você já tem {current_quantity} no carrinho. Disponível para adicionar: {available} unidades"
                     }, 400
                 
-                # Verificar se é erro de limite de itens
+                # Limite de anúncios distintos
                 if current_cart and current_cart.unique_items_count >= RedisCartService.MAX_ITEMS_PER_CART:
                     return {
                         "error": f"Limite de {RedisCartService.MAX_ITEMS_PER_CART} itens diferentes no carrinho excedido"
                     }, 400
                 
-                # Verificar se é erro de quantidade máxima
+                # Limite de unidades por item
                 if requested_quantity > RedisCartService.MAX_QUANTITY_PER_ITEM:
                     return {
                         "error": f"Quantidade máxima por item é {RedisCartService.MAX_QUANTITY_PER_ITEM}"
@@ -78,7 +87,6 @@ class AddItemUseCase:
                     "error": "Erro ao adicionar item ao carrinho"
                 }, 400
             
-            # SUCESSO
             return {
                 "success": True,
                 "data": self.cart_service.get_cart_summary(request.user_id),

@@ -1,4 +1,7 @@
-# app/services/cart_service.py
+# app/services/redis_cart_service.py
+# Regras de negócio do carrinho de compras (armazenado no Redis): adicionar, remover, alterar
+# quantidade, limpar, resumir e sincronizar preço/estoque com o PostgreSQL antes do checkout.
+
 from app.repositories.cart_repository import CartRepository
 from app.entities.cart_entity import CartEntity
 from app.entities.cart_item_entity import CartItemEntity
@@ -9,27 +12,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RedisCartService:
-    """Serviço para gerenciar carrinho de compras"""
+    """Serviço do carrinho: aplica limites de negócio (50 anúncios, 99 unidades por item) e usa o
+    CartRepository (Redis) e o ListingService (PostgreSQL).
+    """
     
     # Limites de negócio
     MAX_ITEMS_PER_CART = 50
     MAX_QUANTITY_PER_ITEM = 99
     
     def __init__(self):
+        """Cria o repositório do carrinho e o serviço de anúncios."""
         self.repository = CartRepository()
         self.listing_service = ListingService() 
     
     def get_cart(self, user_id: str) -> CartEntity:
-        """
-        Obtém o carrinho do usuário.
-        Se não existir, cria um novo carrinho vazio.
-        
-        Args:
-            user_id: ID do usuário
-            
-        Returns:
-            CartEntity: Carrinho do usuário
-        """
+        """Retorna o carrinho salvo do usuário ou um carrinho vazio novo (não persistido)."""
         cart = self.repository.find_by_user_id(user_id)
         
         if not cart:
@@ -41,16 +38,7 @@ class RedisCartService:
 
     
     def get_item_quantity(self, user_id: str, listing_id: str) -> int:
-        """
-        Retorna a quantidade de um item específico no carrinho do usuário.
-        
-        Args:
-            user_id: ID do usuário
-            listing_id: ID do listing
-        
-        Returns:
-            int: Quantidade do item no carrinho (0 se não encontrado)
-        """
+        """Quantidade do anúncio no carrinho do usuário (0 se não estiver nele)."""
         cart = self.get_cart(user_id)
         
         for item in cart.items:
@@ -60,16 +48,7 @@ class RedisCartService:
         return 0
 
     def get_cart_item(self, user_id: str, listing_id: str) -> Optional[CartItemEntity]:
-        """
-        Retorna o item completo do carrinho pelo listing_id.
-        
-        Args:
-            user_id: ID do usuário
-            listing_id: ID do listing
-        
-        Returns:
-            CartItemEntity: O item do carrinho ou None se não encontrado
-        """
+        """Item do carrinho referente ao anúncio, ou None."""
         cart = self.get_cart(user_id)
         
         for item in cart.items:
@@ -79,15 +58,10 @@ class RedisCartService:
         return None
     
     def add_item(self, user_id: str, item_data: Dict[str, Any]) -> Optional[CartEntity]:
-        """
-        Adiciona item ao carrinho.
-        
-        Args:
-            user_id: ID do usuário
-            item_data: Dados do item (listing_id, frame_id, name, price, seller_id, etc.)
-            
-        Returns:
-            CartEntity: Carrinho atualizado ou None se erro
+        """Adiciona o anúncio ao carrinho (somando à quantidade existente) e salva no Redis.
+
+        Retorna None se o carrinho já tem 50 anúncios, se a quantidade passa de 99, se o total
+        ultrapassa `max_quantity` (estoque informado) ou se a gravação falhar.
         """
         
         cart = self.get_cart(user_id)
@@ -103,21 +77,21 @@ class RedisCartService:
             logger.warning(f"Quantidade {quantity} excede o limite de {self.MAX_QUANTITY_PER_ITEM}")
             return None
         
-        # VERIFICAR SE O ITEM JÁ EXISTE NO CARRINHO
+        # Item já existente para o mesmo anúncio
         existing_item = None
         for item in cart.items:
             if item.listing_id == item_data["listing_id"]:
                 existing_item = item
                 break
         
-        # CALCULAR A NOVA QUANTIDADE
+        # Quantidade final após a adição
         max_quantity = item_data.get("max_quantity", 0)
         if existing_item:
             new_quantity = existing_item.quantity + quantity
         else:
             new_quantity = quantity
         
-        # VALIDAR SE NÃO EXCEDE O ESTOQUE
+        # Não pode exceder o estoque informado
         if max_quantity > 0 and new_quantity > max_quantity:
             logger.warning(
                 f"Quantidade {new_quantity} excede o estoque disponível {max_quantity} "
@@ -140,7 +114,7 @@ class RedisCartService:
         )
         
         cart.add_item(new_item)
-        if not self.repository.save(cart):  # ← Verifica!
+        if not self.repository.save(cart):
             logger.error(f"Falha ao salvar carrinho no Redis: {user_id}")
             return None
         
@@ -148,15 +122,9 @@ class RedisCartService:
         return cart
     
     def remove_item(self, user_id: str, item_id: str) -> Optional[CartEntity]:
-        """
-        Remove item do carrinho.
-        
-        Args:
-            user_id: ID do usuário
-            item_id: ID do item a ser removido
-            
-        Returns:
-            CartEntity: Carrinho atualizado ou None se item não encontrado
+        """Remove o item do carrinho; se o carrinho ficar vazio, apaga a chave no Redis.
+
+        Retorna None se o item não existir ou se a gravação falhar.
         """
         cart = self.get_cart(user_id)
         
@@ -176,16 +144,9 @@ class RedisCartService:
         return None
     
     def update_quantity(self, user_id: str, item_id: str, quantity: int) -> Optional[CartEntity]:
-        """
-        Atualiza quantidade de um item no carrinho.
-        
-        Args:
-            user_id: ID do usuário
-            item_id: ID do item
-            quantity: Nova quantidade (se <= 0, remove o item)
-            
-        Returns:
-            CartEntity: Carrinho atualizado ou None se item não encontrado
+        """Define a quantidade do item (limitada a 0–99; zero remove o item) e salva.
+
+        Retorna None se o item não existir ou se a gravação falhar.
         """
         if quantity < 0:
             quantity = 0
@@ -197,7 +158,7 @@ class RedisCartService:
         cart = self.get_cart(user_id)
         
         if cart.update_quantity(item_id, quantity):
-            if not self.repository.save(cart):  # ← Verifica!
+            if not self.repository.save(cart):
                 logger.error(f"Falha ao salvar carrinho após atualização: {user_id}")
                 return None
             
@@ -208,15 +169,7 @@ class RedisCartService:
         return None
     
     def clear_cart(self, user_id: str) -> CartEntity:
-        """
-        Esvazia completamente o carrinho.
-        
-        Args:
-            user_id: ID do usuário
-            
-        Returns:
-            CartEntity: Carrinho vazio
-        """
+        """Esvazia o carrinho apagando a chave no Redis. Retorna None se a remoção falhar."""
         cart = self.get_cart(user_id)
         cart.clear()
         if not self.repository.delete(user_id):
@@ -227,16 +180,7 @@ class RedisCartService:
         return cart
     
     def delete_cart(self, user_id: str) -> bool:
-        """
-        Remove completamente o carrinho do Redis.
-        Usado após finalização de compra.
-        
-        Args:
-            user_id: ID do usuário
-            
-        Returns:
-            bool: True se removido com sucesso
-        """
+        """Apaga o carrinho do Redis. Retorna True se havia carrinho."""
         result = self.repository.delete(user_id)
         
         if result:
@@ -247,15 +191,7 @@ class RedisCartService:
         return result
     
     def get_cart_summary(self, user_id: str) -> Dict[str, Any]:
-        """
-        Retorna um resumo do carrinho (útil para o frontend).
-        
-        Args:
-            user_id: ID do usuário
-            
-        Returns:
-            Dict: Resumo do carrinho
-        """
+        """Resumo do carrinho: totais e lista simplificada dos itens."""
         cart = self.get_cart(user_id)
         
         return {
@@ -279,18 +215,17 @@ class RedisCartService:
     
 
     async def sync_with_postgres(self, user_id: str) -> CartEntity:
-        """
-        Sincroniza carrinho com PostgreSQL:
-        - Valida estoque atual
-        - Atualiza preços
-        - Remove itens sem estoque
+        """Atualiza os itens do carrinho com preço, estoque e nome atuais do PostgreSQL.
+
+        Remove itens cujo anúncio não existe mais ou está sem estoque e reduz quantidades acima
+        do estoque. O carrinho é regravado no Redis apenas quando algum item é removido.
         """
         cart = self.get_cart(user_id)
         
         if not cart.items:
             return cart
         
-        # Buscar todos os listings em BATCH (mais eficiente)
+        # Busca todos os anúncios do carrinho em uma única consulta
         listing_ids = [item.listing_id for item in cart.items]
         listings = await self.listing_service.get_listings_batch(listing_ids)
         
@@ -304,22 +239,21 @@ class RedisCartService:
                 logger.info(f"Item {item.name} sem estoque, será removido")
                 continue
             
-            # Atualizar dados do listing
+            # Preço, estoque e nome atuais do anúncio
             old_price = item.price
             item.price = listing['priceCoins']
             item.max_quantity = listing['quantity']
             item.name = listing['frame_name']
             
-            # Log se preço mudou
             if old_price != item.price:
                 logger.info(f"Preço de {item.name} alterado: {old_price} → {item.price}")
             
-            # Se quantidade excede estoque, ajustar
+            # Reduz a quantidade ao estoque disponível
             if item.quantity > item.max_quantity:
                 logger.info(f"Ajustando quantidade de {item.name} de {item.quantity} para {item.max_quantity}")
                 item.quantity = item.max_quantity
         
-        # Remover itens sem estoque
+        # Remove itens sem estoque ou com anúncio inativo
         for item_id in items_to_remove:
             cart.remove_item(item_id)
         
@@ -330,13 +264,13 @@ class RedisCartService:
         return cart
     
     async def validate_for_checkout(self, user_id: str) -> Dict[str, Any]:
-        """
-        Valida todos os itens do carrinho antes do checkout.
-        Retorna UMA ÚNICA mensagem de erro genérica.
+        """Sincroniza o carrinho e verifica se pode ir para o checkout.
+
+        Retorna {valid, error, cart}; `error` é uma mensagem única para carrinho vazio ou itens
+        indisponíveis.
         """
         cart = await self.sync_with_postgres(user_id)
         
-        # Se carrinho vazio
         if not cart.items:
             return {
                 "valid": False,
@@ -344,14 +278,13 @@ class RedisCartService:
                 "cart": cart
             }
         
-        # Verifica se há problemas
+        # Algum item sem estoque ou acima do estoque
         has_errors = False
         for item in cart.items:
             if item.max_quantity == 0 or item.quantity > item.max_quantity:
                 has_errors = True
                 break
         
-        # Se não tem erros
         if not has_errors:
             return {
                 "valid": True,
@@ -359,7 +292,6 @@ class RedisCartService:
                 "cart": cart
             }
         
-        # Erro
         return {
             "valid": False,
             "error": "Alguns itens do seu carrinho estão indisponíveis ou com quantidade excedida. Não foi possível completar a compra.",
@@ -367,8 +299,8 @@ class RedisCartService:
         }
     
     async def get_cart_with_details(self, user_id: str) -> Dict[str, Any]:
-        """
-        Busca carrinho e enriquece com dados do PostgreSQL
+        """Sincroniza o carrinho e retorna os itens com imagem, raridade e disponibilidade do
+        anúncio.
         """
         cart = await self.sync_with_postgres(user_id)
         
@@ -382,7 +314,7 @@ class RedisCartService:
                 "updated_at": cart.updated_at
             }
         
-        # Buscar todos os listings em BATCH
+        # Busca todos os anúncios do carrinho em uma única consulta
         listing_ids = [item.listing_id for item in cart.items]
         listings = await self.listing_service.get_listings_batch(listing_ids)
         
@@ -403,8 +335,8 @@ class RedisCartService:
                 "max_quantity": item.max_quantity,
                 "total": item.total(),
                 "frame": {
-                    "imageUrl": listing['imageUrl'] if listing else None,  # ← CORRIGIDO!
-                    "thumbnailUrl": listing['thumbnailUrl'] if listing else None,  # ← CORRIGIDO!
+                    "imageUrl": listing['imageUrl'] if listing else None,
+                    "thumbnailUrl": listing['thumbnailUrl'] if listing else None,
                     "rarity": listing['rarity'] if listing else None
                 } if listing else None,
                 "in_stock": listing is not None and listing['quantity'] > 0
@@ -420,7 +352,5 @@ class RedisCartService:
         }
     
     def get_cart_ttl(self, user_id: str) -> int:
-        """
-        Retorna o tempo de vida restante do carrinho em segundos
-        """
+        """Segundos restantes até o carrinho expirar no Redis."""
         return self.repository.get_ttl(user_id)

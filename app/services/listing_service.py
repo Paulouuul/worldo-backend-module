@@ -1,4 +1,7 @@
 # app/services/listing_service.py
+# Consultas de anúncios (cosmetic_listing) no PostgreSQL usadas pelo carrinho: busca individual,
+# em lote, com lock e atualização de quantidade.
+
 from app.core.database import db
 from typing import Optional, Dict, Any, List
 import logging
@@ -6,12 +9,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ListingService:
-    """Serviço para buscar dados do PostgreSQL usando DatabaseManager"""
+    """Acesso aos anúncios ativos do marketplace no PostgreSQL."""
     
     async def get_listing(self, listing_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Busca um listing no PostgreSQL pelo ID.
-        """
+        """Retorna o anúncio ativo (quantidade, preço, moldura e vendedor) ou None."""
         try:
             query = """
                 SELECT 
@@ -44,9 +45,7 @@ class ListingService:
             return None
     
     async def get_listings_batch(self, listing_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-        """
-        Busca múltiplos listings de uma vez (mais eficiente).
-        """
+        """Busca vários anúncios ativos em uma consulta e retorna um dict indexado pelo id."""
         if not listing_ids:
             return {}
         
@@ -84,8 +83,9 @@ class ListingService:
             return {}
     
     async def get_listing_with_lock(self, listing_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Busca listing com LOCK (FOR UPDATE) para operações críticas.
+        """Busca o anúncio ativo com SELECT ... FOR UPDATE dentro de uma transação.
+
+        O lock vale apenas enquanto a transação desta função está aberta.
         """
         try:
             query = """
@@ -115,8 +115,8 @@ class ListingService:
             return None
     
     async def update_listing_quantity(self, listing_id: str, new_quantity: int) -> bool:
-        """
-        Atualiza a quantidade de um listing no PostgreSQL.
+        """Define a quantidade disponível do anúncio. Retorna False se nenhum registro foi
+        atualizado.
         """
         try:
             query = """

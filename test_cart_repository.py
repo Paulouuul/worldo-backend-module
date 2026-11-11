@@ -1,4 +1,7 @@
-# test_repository.py
+# test_cart_repository.py
+# Script manual de teste do CartRepository contra o Redis local: cria, salva, lê, verifica e
+# remove um carrinho de exemplo. Executar com: python test_cart_repository.py
+
 import sys
 sys.path.insert(0, ".")
 
@@ -7,16 +10,17 @@ from app.entities.cart_entity import CartEntity
 from app.entities.cart_item_entity import CartItemEntity
 
 def test_repository():
+    """Executa o fluxo completo do CartRepository e imprime o resultado de cada etapa."""
     print("=== Testando CartRepository ===\n")
     
     repo = CartRepository()
     user_id = "test_user_123"
     
-    # 1. Criar carrinho
+    # Cria o carrinho
     print("1. Criando carrinho...")
     cart = CartEntity(user_id=user_id)
     
-    # 2. Adicionar item
+    # Adiciona um item
     print("2. Adicionando item...")
     item = CartItemEntity(
         listing_id="listing_456",
@@ -29,13 +33,13 @@ def test_repository():
     )
     cart.add_item(item)
     
-    # 3. Salvar
+    # Salva no Redis
     print("3. Salvando no Redis...")
     result = repo.save(cart)
     print(f"   Salvo: {result}")
     
     if result:
-        # 4. Buscar
+        # Lê do Redis
         print("4. Buscando do Redis...")
         found = repo.find_by_user_id(user_id)
         if found:
@@ -53,12 +57,12 @@ def test_repository():
         else:
             print("   ❌ Carrinho não encontrado!")
         
-        # 5. Verificar existência
+        # Verifica existência
         print("\n5. Verificando existência...")
         exists = repo.exists(user_id)
         print(f"   Existe: {exists}")
         
-        # 6. Deletar
+        # Remove
         print("\n6. Deletando carrinho...")
         deleted = repo.delete(user_id)
         print(f"   Deletado: {deleted}")

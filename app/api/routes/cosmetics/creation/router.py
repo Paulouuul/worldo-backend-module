@@ -1,3 +1,6 @@
+# app/api/routes/cosmetics/creation/router.py
+# Rotas de criação de cosméticos (/cosmetics/creation/*, sob WORLDO_API_PREFIX). Exige JWT.
+
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 import logging
@@ -17,9 +20,11 @@ async def create_cosmetic_frame(
     image: UploadFile = File(..., description="Arquivo da imagem principal"),
     thumbnail: Optional[UploadFile] = File(None, description="Arquivo da miniatura opcional"),
 ):
-    """
-    Recebe os dados do frontend (Next.js FormData), extrai as imagens e
-    delega a validação, cobrança e criação para o UseCase.
+    """POST /cosmetics/creation/create — cria uma moldura a partir do FormData do Next.js.
+
+    Lê a imagem principal (obrigatória) e a miniatura (opcional) em memória e delega validação,
+    cobrança de moedas, upload ao R2 e gravação ao CreateCosmeticFrameUseCase. Retorna 201 com a
+    moldura criada.
     """
     logger.info("=" * 50)
     logger.info(f"INICIANDO CRIAÇÃO DE COSMÉTICO | Usuário: {user.id}")
@@ -31,19 +36,19 @@ async def create_cosmetic_frame(
     logger.info("=" * 50)
 
     try:
-        # 1. Lê os bytes puros do arquivo de Imagem Principal
+        # Imagem principal em memória (obrigatória)
         image_data = None
         if image and image.size > 0:
             image_data = {
                 "filename": image.filename,
                 "content_type": image.content_type,
                 "size": image.size,
-                "data": await image.read()  # Lê os bytes puros para a memória
+                "data": await image.read()
             }
         else:
             raise ValueError("O arquivo de imagem principal é obrigatório e não pode estar vazio.")
 
-        # 2. Lê os bytes puros do arquivo de Miniatura (se existir)
+        # Miniatura em memória (opcional)
         thumbnail_data = None
         if thumbnail and thumbnail.size > 0:
             thumbnail_data = {
@@ -53,7 +58,7 @@ async def create_cosmetic_frame(
                 "data": await thumbnail.read()
             }
 
-        # 3. Monta o Payload para o Use Case (Evitando json.dumps)
+        # Payload do caso de uso (bytes das imagens incluídos)
         payload = {
             "user_id": user.id,
             "name": name,
@@ -63,13 +68,12 @@ async def create_cosmetic_frame(
             "thumbnail": thumbnail_data
         }
 
-        # 4. Executa a regra de negócios
+        # Executa a criação (validação, cobrança, upload e gravação)
         use_case = CreateCosmeticFrameUseCase()
 
         response_data, status_code = await use_case.execute(payload)
 
-        # 5. Tratamento de Resposta
-
+        # Converte o erro do caso de uso em HTTPException
         if "error" in response_data:
             logger.error(f"Erro no use_case de cosmético: {response_data.get('error')}")
             error_response(response_data["error"], status_code)

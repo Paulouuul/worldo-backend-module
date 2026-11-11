@@ -1,3 +1,6 @@
+# app/api/routes/cosmetics/marketplace/cart/clear_cart_use_case/use_case.py
+# Caso de uso de DELETE /cosmetics/marketplace/cart/clear: esvazia o carrinho do usuário.
+
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
 import logging
@@ -5,14 +8,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ClearCartUseCase:
+    """Esvazia o carrinho do usuário."""
     def __init__(self):
+        """Cria o serviço de carrinho usado pelo caso de uso."""
         self.cart_service = RedisCartService()
     
     async def execute(self, user_id: str) -> tuple[Dict[str, Any], int]:
-        """
-        Remove todos os itens do carrinho do usuário.
-        Mantém o carrinho vazio no Redis para futuras adições.
-        """
+        """Apaga o carrinho do Redis e retorna o resumo (vazio). Retorna (resposta, status HTTP)."""
         try:
 
             cart = self.cart_service.clear_cart(user_id)

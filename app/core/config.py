@@ -1,4 +1,7 @@
 # app/core/config.py
+# Configurações da aplicação lidas do .env (prefixo WORLDO_): app, servidor, PostgreSQL, Redis,
+# Cloudflare R2, JWT e URLs do Next.js/frontend.
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import os
@@ -6,7 +9,7 @@ import os
 load_dotenv()
 
 class Settings(BaseSettings):
-    """Configurações da aplicação"""
+    """Configurações tipadas da aplicação. Cada campo é lido da variável WORLDO_<NOME_DO_CAMPO>."""
     
     # App Settings
     app_name: str = "Worldo Backend"

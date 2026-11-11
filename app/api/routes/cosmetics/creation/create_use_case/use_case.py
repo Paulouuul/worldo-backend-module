@@ -1,3 +1,8 @@
+# app/api/routes/cosmetics/creation/create_use_case/use_case.py
+# Caso de uso de POST /cosmetics/creation/create: valida a moldura, cobra o pacote de criação em
+# moedas, converte as imagens para WebP, envia ao R2 e grava moldura, itens de inventário e
+# transação em uma única transação do PostgreSQL.
+
 import logging
 import time
 import cuid
@@ -12,6 +17,7 @@ from app.utils.image_utils import convert_to_webp, add_animated_suffix, ConvertO
 logger = logging.getLogger(__name__)
 
 class CreateCosmeticFrameRequest(BaseModel):
+    """Dados validados da criação: usuário, nome, descrição, pacote e imagens (bytes + metadados)."""
     user_id: str
     name: str
     description: Optional[str] = None
@@ -20,6 +26,11 @@ class CreateCosmeticFrameRequest(BaseModel):
     thumbnail: Optional[Dict[str, Any]] = None
 
 class CreateCosmeticFrameUseCase:
+    """Cria uma moldura cosmética paga com moedas.
+
+    Limites: moldura até 5MB (GIF 3MB), miniatura até 2MB (GIF 1MB), nome de 3 a 50 caracteres,
+    descrição até 500. Formatos aceitos: JPG, PNG, GIF e JFIF.
+    """
     MAX_FRAME_SIZE = 5 * 1024 * 1024  # 5MB
     MAX_FRAME_GIF = 3 * 1024 * 1024   # 3MB
     MAX_THUMB_SIZE = 2 * 1024 * 1024  # 2MB
@@ -31,26 +42,33 @@ class CreateCosmeticFrameUseCase:
     ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
     
     def __init__(self):
+        """Inicializa os caminhos enviados ao R2 (usados no rollback)."""
         self._uploaded_image_path = None
         self._uploaded_thumbnail_path = None
 
     async def execute(self, payload: dict) -> tuple[Dict[str, Any], int]:
-        """Recebe o dicionário payload diretamente do Router"""
+        """Executa a criação completa da moldura.
+
+        Valida campos e arquivos, confere pacote e saldo, envia as imagens ao R2 e, em
+        transação, debita as moedas, cria a moldura, adiciona ao inventário a quantidade do
+        pacote e registra a coin_transaction. Em qualquer falha, remove do R2 os arquivos já
+        enviados. Retorna (resposta, status HTTP).
+        """
         try:
             logger.info(f"Iniciando criação de cosmético para o usuário: {payload.get('user_id')}")
             
-            # Validação Rápida (Fail Fast)
+            # Campos obrigatórios
             if not payload.get('name') or not payload.get('package_id'):
                 raise ValueError("Campos obrigatórios inválidos ou faltando (name, package_id)")
             
-             # Validação de tamanho do nome
+            # Nome normalizado (espaços colapsados) entre 3 e 50 caracteres
             name = " ".join(payload.get('name', '').strip().split())
             if len(name) > self.MAX_NAME_SIZE:
                 raise ValueError(f"Nome deve ter no máximo {self.MAX_NAME_SIZE} caracteres")
             if len(name) < 3:
                 raise ValueError("Nome deve ter pelo menos 3 caracteres")
                 
-            # Validação de tamanho da descrição
+            # Descrição opcional de até 500 caracteres
             description = payload.get('description')
             if description is not None:
                 description = str(description).strip()
@@ -65,12 +83,12 @@ class CreateCosmeticFrameUseCase:
 
             request = CreateCosmeticFrameRequest(**payload)
             
-            # Validações de Arquivo
+            # Formato e tamanho das imagens
             self._validate_file(request.image, "moldura", self.MAX_FRAME_SIZE, self.MAX_FRAME_GIF)
             if request.thumbnail:
                 self._validate_file(request.thumbnail, "miniatura", self.MAX_THUMB_SIZE, self.MAX_THUMB_GIF)
                 
-            # Validação de Regras de Negócio (Pacote e Moedas)
+            # Pacote existente e saldo suficiente
             package = await self._get_package(request.package_id)
             if not package:
                 return {"error": "Pacote inválido"}, 400
@@ -82,8 +100,8 @@ class CreateCosmeticFrameUseCase:
                     "error": f"Moedas insuficientes. Você precisa de {total_cost} moedas."
                 }, 400
 
-            # Processar Uploads (Memória -> WebP -> R2)
-            timestamp = int(time.time() * 1000) # Usando ms para evitar conflitos
+            # Converte para WebP e envia ao R2; sem miniatura, usa a imagem principal
+            timestamp = int(time.time() * 1000)  # Milissegundos compõem o caminho único no bucket
             new_image_url, self._uploaded_image_path = await self._process_frame(request, timestamp)
             
             if request.thumbnail:
@@ -91,12 +109,10 @@ class CreateCosmeticFrameUseCase:
             else:
                 new_thumb_url = new_image_url
 
-            # Transação no Banco de Dados
+            # Débito, moldura, inventário e histórico na mesma transação (rollback total em erro)
             try:
-                # O bloco "async with db.transaction()" garante que se algo falhar,
-                # nenhuma query desta sessão será salva no PostgreSQL.
                 async with db.transaction():
-                    # Debitar moedas
+                    # Debita as moedas; saldo negativo aborta a transação
                     updated_user = await db.fetch_one(
                         """UPDATE users SET coins = coins - $1 WHERE id = $2 RETURNING coins""",
                         total_cost, request.user_id
@@ -106,7 +122,7 @@ class CreateCosmeticFrameUseCase:
                         raise RuntimeError("INSUFFICIENT_FUNDS")
                     frame_id = cuid.cuid()
                     now = datetime.now(timezone.utc).replace(tzinfo=None)
-                    # Criar a moldura (Cosmetic Frame)
+                    # Moldura com estoque igual à quantidade do pacote
                     frame = await db.fetch_one(
                         """
                         INSERT INTO cosmetic_frame (id, name, description, "imageUrl", "thumbnailUrl", rarity, stock, "createdBy", "createdAt", "updatedAt")
@@ -117,7 +133,7 @@ class CreateCosmeticFrameUseCase:
                         package['rarity'], int(package['quantity']), request.user_id, now, now
                     )
                     
-                    # Adicionar itens ao inventário do usuário
+                    # Uma unidade no inventário do criador para cada item do pacote
                     for _ in range(int(package['quantity'])):
                         item_id = cuid.cuid()
                         await db.execute(
@@ -125,7 +141,7 @@ class CreateCosmeticFrameUseCase:
                             item_id, frame['id'], request.user_id, now, now
                         )
                         
-                    # Registrar histórico da transação
+                    # Histórico do gasto de moedas
                     transaction_id = cuid.cuid() 
                     await db.execute(
                         """
@@ -138,9 +154,8 @@ class CreateCosmeticFrameUseCase:
                     
             except Exception as db_err:
                 logger.error(f"Falha na transação do BD: {db_err}")
-                raise db_err # Relança para ser pego pelo bloco exterior e acionar o Rollback no R2
+                raise db_err  # Tratado abaixo, que também remove os arquivos do R2
 
-            # Sucesso Total
             return {
                 "success": True,
                 "frame": dict(frame),
@@ -160,9 +175,10 @@ class CreateCosmeticFrameUseCase:
             await self._rollback()
             return {"error": "Erro interno ao criar moldura", "details": str(e)}, 500
 
-    # MÉTODOS DE VALIDAÇÃO E BD
+    # Validação e consultas
 
     def _validate_file(self, file_data: Dict, file_type: str, max_size: int, max_gif_size: int):
+        """Valida formato (MIME e extensão) e tamanho do arquivo, com limite menor para GIF."""
         filename = file_data.get('filename', '')
         content_type = file_data.get('content_type', '')
         size = file_data.get('size', 0)
@@ -178,17 +194,22 @@ class CreateCosmeticFrameUseCase:
             raise ValueError(f"{file_type.capitalize()} deve ter no máximo {max_size // 1024 // 1024}MB.")
 
     async def _get_package(self, package_id: str):
+        """Busca o pacote de criação (cosmetic_creation_package) pelo id."""
         return await db.fetch_one('SELECT * FROM cosmetic_creation_package WHERE id = $1', package_id)
 
     async def _get_user_coins(self, user_id: str) -> int:
+        """Saldo de moedas do usuário (0 se não encontrado)."""
         user = await db.fetch_one('SELECT coins FROM users WHERE id = $1', user_id)
         return int(user['coins']) if user else 0
 
-    # MÉTODOS DE PROCESSAMENTO DE IMAGEM
+    # Processamento e upload de imagens
 
     async def _process_frame(self, request: CreateCosmeticFrameRequest, timestamp: int):
+        """Converte a imagem principal para WebP (até 512x512, animado se GIF), envia ao R2 e
+        retorna (url, caminho).
+        """
         is_gif = request.image['content_type'] == 'image/gif'
-        image_bytes = request.image['data'] # Bytes puros lidos do router
+        image_bytes = request.image['data']
         
         converted = convert_to_webp(
             image_bytes,
@@ -210,6 +231,9 @@ class CreateCosmeticFrameUseCase:
         return url, path
 
     async def _process_thumbnail(self, request: CreateCosmeticFrameRequest, timestamp: int):
+        """Converte a miniatura para WebP 512x512 recortada (cover), envia ao R2 e retorna (url,
+        caminho).
+        """
         is_gif = request.thumbnail['content_type'] == 'image/gif'
         thumb_bytes = request.thumbnail['data']
         
@@ -232,10 +256,10 @@ class CreateCosmeticFrameUseCase:
         url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
         return url, path
 
-    # ROLLBACK DE ARQUIVOS NO R2
+    # Limpeza do R2 em caso de falha
 
     async def _rollback(self):
-        """Em caso de falha, exclui os arquivos enviados para o R2 para não virar lixo de bucket"""
+        """Remove do R2 a imagem e a miniatura já enviadas quando a criação falha."""
         if self._uploaded_image_path:
             await r2_client.delete_file(self._uploaded_image_path, is_public=True)
             logger.info(f"Rollback executado: moldura deletada -> {self._uploaded_image_path}")

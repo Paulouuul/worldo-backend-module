@@ -1,3 +1,8 @@
+# app/api/routes/test/auth_test.py
+# Rotas de diagnóstico de autenticação (/auth_test/test/auth/*, sob WORLDO_API_PREFIX):
+# inspecionam o header Authorization e o JWT recebido. Expõem headers e claims; uso restrito a
+# desenvolvimento.
+
 from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from app.auth.dependencies import get_current_user, get_current_user_optional
@@ -8,7 +13,9 @@ router = APIRouter(prefix="/test/auth", tags=["test"])
 
 @router.get("/debug-token")
 async def debug_token(request: Request):
-    """Retorna o header Authorization para debug"""
+    """GET /auth_test/test/auth/debug-token — retorna o header Authorization e todos os headers
+    recebidos.
+    """
     auth_header = request.headers.get("Authorization")
     
     return {
@@ -20,7 +27,9 @@ async def debug_token(request: Request):
 
 @router.get("/debug-jwt")
 async def debug_jwt(request: Request):
-    """Tenta decodificar o JWT e retorna o resultado"""
+    """GET /auth_test/test/auth/debug-jwt — decodifica o JWT sem e com verificação de assinatura e
+    retorna as claims.
+    """
     from jose import jwt
     from app.core.config import settings
     
@@ -40,7 +49,7 @@ async def debug_jwt(request: Request):
         "token_preview": token[:50] + "...",
     }
     
-    # 🔥 CORRIGIDO: Alterado para get_unverified_claims para evitar o erro de falta de chave
+    # Claims sem verificar a assinatura
     try:
         payload = jwt.get_unverified_claims(token)
         result["decoded_without_verify"] = {
@@ -53,7 +62,7 @@ async def debug_jwt(request: Request):
             "error": str(e)
         }
     
-    # Tentar decodificar com verificação de assinatura (Continua igual, funcionando perfeitamente)
+    # Claims com verificação de assinatura (WORLDO_JWT_SECRET)
     try:
         payload = jwt.decode(
             token,
@@ -77,7 +86,7 @@ async def debug_jwt(request: Request):
 async def test_get_current_user(
     user: Annotated[UserInfo, Depends(get_current_user)]
 ):
-    """Testa autenticação obrigatória"""
+    """GET /auth_test/test/auth/me — retorna os dados do usuário autenticado pelo JWT."""
     return {
         "authenticated": True,
         "user": {

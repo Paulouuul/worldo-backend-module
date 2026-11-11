@@ -1,4 +1,7 @@
 # app/core/r2.py
+# Cliente do Cloudflare R2 (API compatível com S3) para upload, remoção, verificação e URLs
+# assinadas nos buckets público e privado.
+
 import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
@@ -8,10 +11,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class R2Client:
-    """Cliente para Cloudflare R2"""
+    """Cliente boto3 configurado para os buckets público e privado do Cloudflare R2."""
     
     def __init__(self):
-        # Validação das variáveis
+        """Valida as variáveis WORLDO_R2_* e cria o cliente S3 apontando para o endpoint do R2."""
         if not all([settings.r2_account_id, settings.r2_access_key_id, 
                    settings.r2_secret_access_key, settings.r2_public_bucket,
                    settings.r2_public_url]):
@@ -37,16 +40,9 @@ class R2Client:
         self.public_url = settings.r2_public_url
     
     async def upload_public(self, file_data: bytes, path: str, content_type: str) -> str:
-        """
-        Upload de arquivo para bucket público
-        
-        Args:
-            file_data: Dados do arquivo em bytes
-            path: Caminho no bucket (ex: avatars/userId/current.jpg)
-            content_type: Tipo MIME do arquivo
-        
-        Returns:
-            URL pública do arquivo
+        """Envia o arquivo ao bucket público com cache de 1 ano e retorna a URL pública.
+
+        `path` é a chave no bucket (ex.: avatars/<userId>/current.jpg).
         """
         try:
             self.client.put_object(
@@ -63,17 +59,7 @@ class R2Client:
             raise
     
     async def upload_private(self, file_data: bytes, path: str, content_type: str) -> str:
-        """
-        Upload de arquivo para bucket privado
-        
-        Args:
-            file_data: Dados do arquivo em bytes
-            path: Caminho no bucket
-            content_type: Tipo MIME do arquivo
-        
-        Returns:
-            Path do arquivo
-        """
+        """Envia o arquivo ao bucket privado e retorna a chave (`path`) do objeto."""
         try:
             self.client.put_object(
                 Bucket=self.private_bucket,
@@ -88,18 +74,12 @@ class R2Client:
             raise
     
     async def delete_file(self, path: str, is_public: bool = True) -> bool:
-        """
-        Deletar arquivo de qualquer bucket
-        
-        Args:
-            path: Caminho do arquivo (pode ser URL ou path)
-            is_public: Se é público (True) ou privado (False)
-        
-        Returns:
-            True se deletado com sucesso
+        """Remove o arquivo do bucket público ou privado. Aceita chave ou URL pública.
+
+        Retorna False (sem lançar) se o R2 recusar a remoção.
         """
         try:
-            # Remove a URL pública se fornecida
+            # Converte URL pública em chave do bucket
             if path.startswith(self.public_url):
                 path = path.replace(f"{self.public_url}/", "")
             
@@ -116,16 +96,7 @@ class R2Client:
             return False
     
     async def file_exists(self, path: str, is_public: bool = True) -> bool:
-        """
-        Verifica se arquivo existe
-        
-        Args:
-            path: Caminho do arquivo
-            is_public: Se é público (True) ou privado (False)
-        
-        Returns:
-            True se existe
-        """
+        """Retorna True se a chave existe no bucket público ou privado."""
         try:
             bucket = self.public_bucket if is_public else self.private_bucket
             self.client.head_object(Bucket=bucket, Key=path)
@@ -134,16 +105,7 @@ class R2Client:
             return False
     
     async def get_signed_url(self, path: str, expires_in: int = 3600) -> str:
-        """
-        Gera URL assinada para arquivo privado
-        
-        Args:
-            path: Caminho do arquivo no bucket privado
-            expires_in: Tempo de expiração em segundos (padrão: 1 hora)
-        
-        Returns:
-            URL assinada temporária
-        """
+        """Gera uma URL temporária de leitura para um arquivo do bucket privado (padrão: 1 hora)."""
         try:
             url = self.client.generate_presigned_url(
                 'get_object',
@@ -158,5 +120,5 @@ class R2Client:
             logger.error(f"Erro ao gerar URL assinada: {e}")
             raise
 
-# Instância global
+# Instância compartilhada pela aplicação
 r2_client = R2Client()

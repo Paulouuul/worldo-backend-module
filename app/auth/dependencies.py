@@ -1,4 +1,7 @@
 # app/auth/dependencies.py
+# Dependências de autenticação do FastAPI: validam o Bearer JWT emitido pelo Next.js e montam o
+# UserInfo do usuário logado.
+
 import logging
 from typing import Annotated, Optional
 
@@ -19,6 +22,11 @@ security = HTTPBearer(auto_error=False)
 def get_current_user(
     token: Annotated[Optional[str], Depends(security)] = None,
 ) -> UserInfo:
+    """Valida o Bearer JWT e retorna o usuário autenticado.
+
+    Exige as claims de id (sub/id) e email; nome e username usam o prefixo do email quando
+    ausentes. Lança 401 se o token faltar, estiver expirado ou for inválido.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não autenticado",
@@ -80,6 +88,7 @@ def get_current_user(
 def get_current_user_optional(
     token: Annotated[Optional[str], Depends(security)] = None,
 ) -> Optional[UserInfo]:
+    """Retorna o usuário autenticado ou None, sem lançar erro quando não há token válido."""
     if not token:
         return None
     try:
@@ -88,5 +97,6 @@ def get_current_user_optional(
         return None
 
 
+# Atalhos para declarar autenticação obrigatória ou opcional nas rotas
 require_auth = Depends(get_current_user)
 require_optional_auth = Depends(get_current_user_optional)

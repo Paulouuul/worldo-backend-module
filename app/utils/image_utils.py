@@ -1,4 +1,7 @@
 # app/utils/image_utils.py
+# Conversão de imagens para WebP com Pillow: redimensionamento, preservação de transparência e
+# suporte a GIF animado (gera WebP animado).
+
 from PIL import Image, ImageSequence
 import io
 from typing import Optional, Dict, Any, Union
@@ -7,7 +10,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ConvertOptions:
+    """Opções de conversão: formato, qualidade (1–100), dimensões, modo de ajuste e transparência.
+
+    `fit` aceita inside/contain, cover, fill e outside; `without_enlargement` evita ampliar a
+    imagem.
+    """
     def __init__(self, format: str = 'webp', quality: int = 80, width: Optional[int] = None, height: Optional[int] = None, preserve_transparency: bool = True, fit: str = 'inside', without_enlargement: bool = True):
+        """Guarda as opções de conversão."""
         self.format = format
         self.quality = quality
         self.width = width
@@ -17,7 +26,11 @@ class ConvertOptions:
         self.without_enlargement = without_enlargement
 
 class ConvertResult:
+    """Resultado da conversão: bytes WebP, tamanhos antes/depois, se é animado e metadados da
+    original.
+    """
     def __init__(self, buffer: bytes, format: str, original_size: int, optimized_size: int, is_animated: bool, metadata: Optional[Dict[str, Any]] = None):
+        """Guarda o resultado da conversão."""
         self.buffer = buffer
         self.format = format
         self.original_size = original_size
@@ -26,16 +39,18 @@ class ConvertResult:
         self.metadata = metadata or {}
 
 def add_animated_suffix(filename: str, is_gif: bool) -> str:
+    """Acrescenta '-animated' antes da extensão do nome do arquivo quando a origem é GIF."""
     if not is_gif: return filename
     last_dot = filename.rfind('.')
     if last_dot == -1: return f"{filename}-animated"
     return f"{filename[:last_dot]}-animated{filename[last_dot:]}"
 
 def normalize_mime_type(mime_type: str) -> str:
+    """Trata image/jfif como image/jpeg."""
     return 'image/jpeg' if mime_type == 'image/jfif' else mime_type
 
 def _ensure_bytes(data: Union[bytes, io.BytesIO, bytearray]) -> bytes:
-    """Garante de forma simples que o buffer está em bytes"""
+    """Converte bytes, bytearray ou objetos tipo arquivo em bytes."""
     if isinstance(data, bytes):
         return data
     elif isinstance(data, bytearray):
@@ -47,19 +62,19 @@ def _ensure_bytes(data: Union[bytes, io.BytesIO, bytearray]) -> bytes:
     raise TypeError(f"Formato binário não suportado: {type(data)}")
 
 def _resize_image(img: Image.Image, width: Optional[int], height: Optional[int], fit: str = 'inside', without_enlargement: bool = True) -> Image.Image:
+    """Redimensiona a imagem conforme o modo `fit`, sem ampliar quando `without_enlargement` é
+    True.
+    """
     if not width and not height: 
         return img
     
     original_width, original_height = img.size
     
-    # Verifica se deve aumentar a imagem
+    # Mantém a imagem original quando ela já cabe nas dimensões pedidas
     if without_enlargement:
-        # Se a imagem já é menor que o tamanho solicitado, retorna ela sem redimensionar
         if original_width <= width and original_height <= height:
             return img
-        # Se for menor em uma dimensão mas maior em outra, mantém a proporção
         if original_width <= width:
-            # Mantém largura, ajusta altura proporcionalmente se necessário
             new_height = int(original_height * (width / original_width))
             if new_height <= height:
                 return img
@@ -69,7 +84,7 @@ def _resize_image(img: Image.Image, width: Optional[int], height: Optional[int],
                 return img
     
     if fit == 'inside' or fit == 'contain':
-        # Usa thumbnail que NUNCA aumenta a imagem
+        # thumbnail reduz mantendo a proporção e nunca amplia
         img.thumbnail((width or 99999, height or 99999), Image.Resampling.LANCZOS)
     elif fit == 'cover':
         target_ratio = width / height if width and height else 1
@@ -92,6 +107,10 @@ def _resize_image(img: Image.Image, width: Optional[int], height: Optional[int],
     return img
 
 def _convert_animated_gif(img: Image.Image, quality: int, width: Optional[int], height: Optional[int], fit: str, without_enlargement: bool = True) -> bytes:
+    """Converte todos os frames do GIF (mantendo as durações) em um WebP animado.
+
+    Lança ValueError se o GIF estiver corrompido ou sem frames.
+    """
     frames, durations = [], []
     
     try:
@@ -126,6 +145,11 @@ def _convert_animated_gif(img: Image.Image, quality: int, width: Optional[int], 
     return output.getvalue()
 
 def _convert_static_image(img: Image.Image, quality: int, width: Optional[int], height: Optional[int], fit: str, preserve_transparency: bool = True, without_enlargement: bool = True) -> bytes:
+    """Converte uma imagem estática em WebP.
+
+    Mantém o canal alfa quando `preserve_transparency` é True; caso contrário, aplica fundo
+    branco. Qualidade 90 ou mais gera WebP sem perdas.
+    """
     if width or height: 
         img = _resize_image(img, width, height, fit, without_enlargement)
     
@@ -145,6 +169,9 @@ def _convert_static_image(img: Image.Image, quality: int, width: Optional[int], 
     return output.getvalue()
 
 def convert_to_webp(input_buffer: Union[bytes, io.BytesIO, bytearray], original_type: str, options: ConvertOptions) -> ConvertResult:
+    """Converte a imagem recebida para WebP (animado se a origem for GIF) e retorna o resultado com
+    metadados.
+    """
     image_bytes = _ensure_bytes(input_buffer)
     original_size = len(image_bytes)
     normalized_type = normalize_mime_type(original_type)

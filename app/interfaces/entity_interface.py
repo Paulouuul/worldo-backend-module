@@ -1,23 +1,28 @@
 # app/interfaces/entity_interface.py
+# Classe base das entidades: gera id/created_at/updated_at e oferece conversão para dict,
+# atualização protegida e criação a partir de dict.
+
 from pydantic import BaseModel
 from typing import List, Any, Dict
 from datetime import datetime, timezone
 import uuid
 
 class EntityInterface(BaseModel):
-    """Interface base para todas as entidades"""
+    """Base das entidades com id (UUID) e datas de criação/atualização em UTC sem fuso."""
     
     id: str = None
     created_at: datetime = None
     updated_at: datetime = None
     
     class Config:
+        """Configuração do Pydantic: aceita tipos arbitrários e serializa datetime em ISO 8601."""
         arbitrary_types_allowed = True
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
     
     def __init__(self, **data):
+        """Preenche id, created_at e updated_at quando não informados."""
         # Gera ID automaticamente se não existir
         if 'id' not in data or not data['id']:
             data['id'] = str(uuid.uuid4())
@@ -34,14 +39,16 @@ class EntityInterface(BaseModel):
     
     @classmethod
     def list_fields_to_not_update(cls) -> List[str]:
-        """Campos que não devem ser atualizados"""
+        """Campos que `update()` nunca altera."""
         return ['id', 'created_at']
     
     def to_dict(self) -> Dict[str, Any]:
-        """Converte entidade para dicionário (serializável para JSON)"""
+        """Converte a entidade em dict serializável (datetimes em ISO, listas de entidades
+        convertidas).
+        """
         data = self.model_dump()
         
-        # Converte datetime para string manualmente (garantia extra)
+        # Converte datetimes e listas de entidades para tipos serializáveis
         for key, value in data.items():
             if isinstance(value, datetime):
                 data[key] = value.isoformat()
@@ -55,7 +62,7 @@ class EntityInterface(BaseModel):
         return data
     
     def update(self, data: Dict[str, Any]) -> "EntityInterface":
-        """Atualiza entidade protegendo campos sensíveis"""
+        """Aplica os campos de `data` (exceto os protegidos) e atualiza updated_at."""
         protected = self.list_fields_to_not_update()
         
         for key, value in data.items():
@@ -67,5 +74,5 @@ class EntityInterface(BaseModel):
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "EntityInterface":
-        """Cria entidade a partir de dicionário"""
+        """Cria a entidade a partir de um dicionário."""
         return cls(**data)

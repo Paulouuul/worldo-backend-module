@@ -1,8 +1,9 @@
 # app/core/redis_client.py
+# Cliente Redis compartilhado (redis_simplify), configurado a partir das settings.
+
 from redis_simplify import RedisClient
 from app.core.config import settings
 
-# Cria o cliente usando as configurações do seu settings
 redis_client = RedisClient(
     host=settings.redis_host,
     port=settings.redis_port,

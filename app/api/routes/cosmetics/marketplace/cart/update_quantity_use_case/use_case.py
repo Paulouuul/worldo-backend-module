@@ -1,3 +1,7 @@
+# app/api/routes/cosmetics/marketplace/cart/update_quantity_use_case/use_case.py
+# Caso de uso de PATCH /cosmetics/marketplace/cart/update/{item_id}: altera a quantidade de um
+# item.
+
 from app.services.redis_cart_service import RedisCartService
 from typing import Dict, Any
 import logging
@@ -5,29 +9,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 class UpdateQuantityRequest:
+    """Parâmetros: id do usuário, id do item e nova quantidade."""
     def __init__(self, user_id: str, item_id: str, quantity: int):
+        """Guarda os parâmetros da requisição."""
         self.user_id = user_id
         self.item_id = item_id
         self.quantity = quantity
 
 class UpdateQuantityUseCase:
+    """Altera a quantidade de um item do carrinho."""
     def __init__(self):
+        """Cria o serviço de carrinho usado pelo caso de uso."""
         self.cart_service = RedisCartService()
     
     async def execute(self, request: UpdateQuantityRequest) -> tuple[Dict[str, Any], int]:
-        """Atualiza quantidade de um item no carrinho"""
+        """Sincroniza o carrinho, valida a nova quantidade contra o estoque e o limite por item e
+        salva.
+
+        Quantidade 0 remove o item. Retorna (resposta, status HTTP); 404 se o item não existir.
+        """
         try:
-            # VALIDAR QUANTIDADE NEGATIVA
             if request.quantity < 0:
                 return {
                     "error": "Quantidade não pode ser negativa"
                 }, 400
             
             
-            # SINCRONIZAR COM POSTGRES
+            # Garante estoque (max_quantity) atualizado antes de validar
             await self.cart_service.sync_with_postgres(request.user_id)
             
-            # BUSCAR O ITEM ESPECÍFICO
             cart = self.cart_service.get_cart(request.user_id)
             item = None
             for cart_item in cart.items:
@@ -35,13 +45,12 @@ class UpdateQuantityUseCase:
                     item = cart_item
                     break
             
-            # VERIFICAR SE ITEM EXISTE
             if not item:
                 return {
                     "error": f"Item com ID '{request.item_id}' não encontrado no carrinho"
                 }, 404
             
-            # SE QUANTITY <= 0, REMOVER ITEM
+            # Quantidade zero remove o item
             if request.quantity <= 0:
                 logger.info(f"Removendo item {request.item_id} (quantity <= 0)")
                 updated_cart = self.cart_service.remove_item(
@@ -60,7 +69,6 @@ class UpdateQuantityUseCase:
                     "data": self.cart_service.get_cart_summary(request.user_id),
                 }, 200
             
-            # VALIDAR ESTOQUE
             if request.quantity > item.max_quantity:
                 return {
                     "error": f"Quantidade {request.quantity} excede o estoque disponível ({item.max_quantity})",
@@ -68,14 +76,12 @@ class UpdateQuantityUseCase:
                     "current_quantity": item.quantity
                 }, 400
             
-            # VALIDAR LIMITE MÁXIMO POR ITEM
             if request.quantity > RedisCartService.MAX_QUANTITY_PER_ITEM:
                 return {
                     "error": f"Quantidade máxima por item é {RedisCartService.MAX_QUANTITY_PER_ITEM}",
                     "max_allowed": RedisCartService.MAX_QUANTITY_PER_ITEM
                 }, 400
             
-            # ATUALIZAR QUANTIDADE
             updated_cart = self.cart_service.update_quantity(
                 request.user_id, 
                 request.item_id, 
@@ -87,7 +93,6 @@ class UpdateQuantityUseCase:
                     "error": "Erro ao atualizar quantidade do item"
                 }, 500
             
-            # SUCESSO
             return {
                 "success": True,
                 "message": f"Quantidade atualizada para {request.quantity}",
