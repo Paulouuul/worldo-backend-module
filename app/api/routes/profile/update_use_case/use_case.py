@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.core.database import db
 from app.core.r2 import r2_client
+from app.core.constants import ALLOWED_IMAGE_EXTENSIONS, ALLOWED_IMAGE_MIME_TYPES, MB, WEBP_MIME_TYPE
 from app.utils.image_utils import convert_to_webp, add_animated_suffix, ConvertOptions
 
 logger = logging.getLogger(__name__)
@@ -42,10 +43,10 @@ class UpdateProfileUseCase:
     Limites: avatar até 5MB (GIF 3MB), capa até 8MB (GIF 5MB), nome de 3 a 50 caracteres, bio
     até 500, localização até 30, site até 200. Formatos aceitos: JPG, PNG, GIF e JFIF.
     """
-    MAX_AVATAR_SIZE = 5 * 1024 * 1024   # 5MB
-    MAX_COVER_SIZE = 8 * 1024 * 1024    # 8MB
-    MAX_AVATAR_GIF = 3 * 1024 * 1024    # 3MB
-    MAX_COVER_GIF = 5 * 1024 * 1024     # 5MB
+    MAX_AVATAR_SIZE = 5 * MB
+    MAX_COVER_SIZE = 8 * MB
+    MAX_AVATAR_GIF = 3 * MB
+    MAX_COVER_GIF = 5 * MB
     
     MAX_NAME_LENGTH = 50
     MIN_NAME_LENGTH = 3
@@ -53,8 +54,11 @@ class UpdateProfileUseCase:
     MAX_LOCATION_LENGTH = 30
     MAX_WEBSITE_LENGTH = 200
     
-    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'jfif'}
-    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
+    # Conversão para WebP: dimensões do avatar e da capa e qualidade para GIF / imagem estática
+    AVATAR_SIZE = (512, 512)
+    COVER_SIZE = (1920, 400)
+    WEBP_QUALITY_GIF = 75
+    WEBP_QUALITY = 80
 
     async def execute(self, payload: dict) -> tuple[Dict[str, Any], int]:
         """Executa a atualização do perfil.
@@ -192,7 +196,7 @@ class UpdateProfileUseCase:
         size = file_data.get('size', 0)
         extension = filename.split('.')[-1].lower() if filename else ''
 
-        if content_type not in self.ALLOWED_MIME_TYPES or extension not in self.ALLOWED_EXTENSIONS:
+        if content_type not in ALLOWED_IMAGE_MIME_TYPES or extension not in ALLOWED_IMAGE_EXTENSIONS:
             raise ValueError(f"Formato do {file_type} não suportado. Use JPG, PNG, GIF ou JFIF.")
 
         if content_type == 'image/gif' and size > max_gif_size:
@@ -214,15 +218,15 @@ class UpdateProfileUseCase:
                 avatar_data['content_type'],
                 ConvertOptions(
                     format='webp-animated' if is_gif else 'webp',
-                    quality=75 if is_gif else 80,
-                    width=512,
-                    height=512,
+                    quality=self.WEBP_QUALITY_GIF if is_gif else self.WEBP_QUALITY,
+                    width=self.AVATAR_SIZE[0],
+                    height=self.AVATAR_SIZE[1],
                     fit='cover'
                 )
             )
             filename = add_animated_suffix(f"avatar-{int(time.time())}.webp", is_gif)
             path = f"avatars/{request.user_id}/{filename}"
-            url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
+            url = await r2_client.upload_public(converted.buffer, path, WEBP_MIME_TYPE)
             return url, path
         return None, None
 
@@ -239,15 +243,15 @@ class UpdateProfileUseCase:
                 cover_data['content_type'],
                 ConvertOptions(
                     format='webp-animated' if is_gif else 'webp',
-                    quality=75 if is_gif else 80,
-                    width=1920,
-                    height=400,
+                    quality=self.WEBP_QUALITY_GIF if is_gif else self.WEBP_QUALITY,
+                    width=self.COVER_SIZE[0],
+                    height=self.COVER_SIZE[1],
                     fit='cover'
                 )
             )
             filename = add_animated_suffix(f"cover-{int(time.time())}.webp", is_gif)
             path = f"cover_image/{request.user_id}/{filename}"
-            url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
+            url = await r2_client.upload_public(converted.buffer, path, WEBP_MIME_TYPE)
             return url, path
         return None, None
 

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.core.database import db
 from app.core.r2 import r2_client
+from app.core.constants import ALLOWED_IMAGE_EXTENSIONS, ALLOWED_IMAGE_MIME_TYPES, MB, WEBP_MIME_TYPE
 from app.utils.image_utils import convert_to_webp, add_animated_suffix, ConvertOptions
 
 logger = logging.getLogger(__name__)
@@ -31,15 +32,17 @@ class CreateCosmeticFrameUseCase:
     Limites: moldura até 5MB (GIF 3MB), miniatura até 2MB (GIF 1MB), nome de 3 a 50 caracteres,
     descrição até 500. Formatos aceitos: JPG, PNG, GIF e JFIF.
     """
-    MAX_FRAME_SIZE = 5 * 1024 * 1024  # 5MB
-    MAX_FRAME_GIF = 3 * 1024 * 1024   # 3MB
-    MAX_THUMB_SIZE = 2 * 1024 * 1024  # 2MB
-    MAX_THUMB_GIF = 1 * 1024 * 1024   # 1MB
+    MAX_FRAME_SIZE = 5 * MB
+    MAX_FRAME_GIF = 3 * MB
+    MAX_THUMB_SIZE = 2 * MB
+    MAX_THUMB_GIF = 1 * MB
     MAX_NAME_SIZE = 50
     MAX_DESCRIPTION_SIZE = 500
     
-    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'jfif'}
-    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/jfif'}
+    # Conversão para WebP: lado máximo (px) e qualidade para GIF animado / imagem estática
+    IMAGE_SIZE = 512
+    WEBP_QUALITY_GIF = 70
+    WEBP_QUALITY = 75
     
     def __init__(self):
         """Inicializa os caminhos enviados ao R2 (usados no rollback)."""
@@ -184,7 +187,7 @@ class CreateCosmeticFrameUseCase:
         size = file_data.get('size', 0)
         extension = filename.split('.')[-1].lower() if filename else ''
         
-        if content_type not in self.ALLOWED_MIME_TYPES or extension not in self.ALLOWED_EXTENSIONS:
+        if content_type not in ALLOWED_IMAGE_MIME_TYPES or extension not in ALLOWED_IMAGE_EXTENSIONS:
             raise ValueError(f"Formato da {file_type} não suportado. Use JPG, PNG, GIF ou JFIF.")
         
         if content_type == 'image/gif' and size > max_gif_size:
@@ -216,9 +219,9 @@ class CreateCosmeticFrameUseCase:
             request.image['content_type'],
             ConvertOptions(
                 format='webp-animated' if is_gif else 'webp', 
-                quality=70 if is_gif else 75, 
-                width=512, 
-                height=512, 
+                quality=self.WEBP_QUALITY_GIF if is_gif else self.WEBP_QUALITY, 
+                width=self.IMAGE_SIZE, 
+                height=self.IMAGE_SIZE, 
                 fit='inside'
             )
         )
@@ -227,7 +230,7 @@ class CreateCosmeticFrameUseCase:
         final_filename = add_animated_suffix(filename, is_gif)
         path = f"frames/{timestamp}-{request.user_id}/{final_filename}"
         
-        url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
+        url = await r2_client.upload_public(converted.buffer, path, WEBP_MIME_TYPE)
         return url, path
 
     async def _process_thumbnail(self, request: CreateCosmeticFrameRequest, timestamp: int):
@@ -242,9 +245,9 @@ class CreateCosmeticFrameUseCase:
             request.thumbnail['content_type'],
             ConvertOptions(
                 format='webp-animated' if is_gif else 'webp', 
-                quality=70 if is_gif else 75, 
-                width=512, 
-                height=512, 
+                quality=self.WEBP_QUALITY_GIF if is_gif else self.WEBP_QUALITY, 
+                width=self.IMAGE_SIZE, 
+                height=self.IMAGE_SIZE, 
                 fit='cover'
             )
         )
@@ -253,7 +256,7 @@ class CreateCosmeticFrameUseCase:
         final_filename = add_animated_suffix(filename, is_gif)
         path = f"frames/{timestamp}-{request.user_id}/{final_filename}"
         
-        url = await r2_client.upload_public(converted.buffer, path, 'image/webp')
+        url = await r2_client.upload_public(converted.buffer, path, WEBP_MIME_TYPE)
         return url, path
 
     # Limpeza do R2 em caso de falha
