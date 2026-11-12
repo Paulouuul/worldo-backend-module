@@ -1,7 +1,7 @@
 # app/auth/schemas.py
 # Schemas de autenticação: dados do usuário extraídos do JWT emitido pelo Next.js.
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Dict, Any
 
 class UserInfo(BaseModel):
@@ -25,6 +25,5 @@ class UserInfo(BaseModel):
     is_oauth: bool = Field(default=False, alias="isOAuth")
     has_password: bool = Field(default=True, alias="hasPassword")
     
-    class Config:
-        """Permite popular o modelo tanto pelo nome do campo quanto pelo alias."""
-        populate_by_name = True
+    # Aceita tanto o nome do campo quanto o alias (camelCase do token)
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)

@@ -2,7 +2,7 @@
 # Classe base das entidades: gera id/created_at/updated_at e oferece conversão para dict,
 # atualização protegida e criação a partir de dict.
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Any, Dict
 from datetime import datetime, timezone
 import uuid
@@ -14,12 +14,8 @@ class EntityInterface(BaseModel):
     created_at: datetime = None
     updated_at: datetime = None
     
-    class Config:
-        """Configuração do Pydantic: aceita tipos arbitrários e serializa datetime em ISO 8601."""
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    # Aceita tipos arbitrários nos campos; datetimes já são serializados em ISO 8601 pelo Pydantic
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     
     def __init__(self, **data):
         """Preenche id, created_at e updated_at quando não informados."""

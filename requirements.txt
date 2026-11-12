@@ -1,48 +1,51 @@
 # Core Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-dotenv==1.0.0
+fastapi==0.162.5
+uvicorn[standard]==0.54.0
+python-dotenv==1.2.4
 
 # PostgreSQL Driver (assíncrono)
-asyncpg==0.29.0
+asyncpg==0.32.0
 
 # SQL
-sqlalchemy==2.0.23
+sqlalchemy==2.1.8
 
 # Geração de Id
-cuid==0.3.0
+cuid==0.4
 
 # Alembic
-alembic==1.12.1
+alembic==1.20.1
 
 # WebSocket
-websockets==12.0
+websockets==17.4
 
 # Redis
-redis==8.0.1
+redis==8.1.0
 redis-simplify==4.1.0
 
 # AWS S3 (compatível com R2)
-boto3==1.34.0
+boto3==1.44.1
 
 # Processamento de Imagens
-Pillow==10.1.0
+Pillow==13.0.0
 
 # HTTP Client (para chamar Next.js)
-httpx==0.25.0
+httpx==0.28.1
 
 # JWT (autenticação)
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
+# passlib não é mantido desde 2020 e quebra com bcrypt >= 4.1; 4.0.1 é a última versão compatível
+bcrypt==4.0.1
+python-multipart==0.0.33
 
 # Validação
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
 
 # Utilitários
-python-dateutil==2.8.2
-ujson==5.9.0
+# Limitado a < 3.0 pelo botocore (boto3)
+python-dateutil==2.9.0.post0
+ujson==6.1.0
 
 # Desenvolvimento
-watchfiles==0.21.0
+watchfiles==1.3.0

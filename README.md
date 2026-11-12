@@ -15,7 +15,7 @@ da rede social [Worldo - Social Network](https://github.com/Paulouuul/worldo-soc
 
 ## Requisitos
 
-- Python
+- Python 3.15
 - Banco de dados PostgreSql configurado de acordo com o projeto [Worldo - Social Network](https://github.com/Paulouuul/worldo-social-network)
 - Cloudflare R2 com 2 buckets: privado / público
 - Banco de dados Redis
@@ -32,7 +32,7 @@ docker compose up
 
 ```bash
 # Criar ambiente virtual
-python -m venv venv
+python3.15 -m venv venv  # ou: uv venv --python 3.15 venv
 
 # Ativar ambiente virtual (Windows PowerShell)
 .\venv\Scripts\Activate.ps1
@@ -59,7 +59,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## Tecnologias
-- Python
+- Python 3.15
 - FastApi
 - Jwt
 - PostgreSql
